@@ -1,19 +1,20 @@
 ﻿'use client';
 
-export const dynamic = 'force-dynamic';
-
-import React, { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AlbumPage() {
-  const params = useParams();
-  const slugParam = typeof params?.slug === 'string' ? params.slug : Array.isArray(params?.slug) ? params.slug[0] : '';
-  const currentSlug = decodeURIComponent(slugParam || '').trim().toLowerCase();
+export default function AlbumPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const resolvedParams = use(params);
+  const slugParam = resolvedParams?.slug || '';
+  const currentSlug = decodeURIComponent(slugParam).trim().toLowerCase();
 
   const [event, setEvent] = useState<any>(null);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -99,8 +100,6 @@ export default function AlbumPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative overflow-x-hidden">
-      
-      {/* Camada de Fundo com Efeito Marca D'Água */}
       {event.bg_image_url && (
         <div
           className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-20 filter saturate-50 contrast-125 z-0"
@@ -108,13 +107,9 @@ export default function AlbumPage() {
         />
       )}
 
-      {/* Degradê de contraste */}
       <div className="fixed inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/90 pointer-events-none z-0" />
 
-      {/* Conteúdo Principal */}
       <div className="relative z-10 flex flex-col min-h-screen justify-between">
-        
-        {/* Cabeçalho */}
         <header className="text-center py-16 px-4 border-b border-white/10 bg-black/40 backdrop-blur-md">
           <h1 className="text-4xl md:text-6xl font-serif tracking-wide drop-shadow-lg text-white">
             {event.title}
@@ -135,7 +130,6 @@ export default function AlbumPage() {
           </div>
         </header>
 
-        {/* Galeria */}
         <section className="max-w-7xl mx-auto w-full px-4 py-12 flex-1">
           {photos.length === 0 ? (
             <p className="text-center text-zinc-400 mt-16 font-light">
