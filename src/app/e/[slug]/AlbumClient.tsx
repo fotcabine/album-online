@@ -1,14 +1,19 @@
 ﻿'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, use } from 'react';
 import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
-export default function AlbumClient({ slug }: { slug: string }) {
-  const currentSlug = decodeURIComponent(slug || '').trim().toLowerCase();
+export default function AlbumClient({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}) {
+  const resolvedParams = use(params);
+  const currentSlug = decodeURIComponent(resolvedParams?.slug || '').trim().toLowerCase();
 
   const [event, setEvent] = useState<any>(null);
   const [photos, setPhotos] = useState<any[]>([]);

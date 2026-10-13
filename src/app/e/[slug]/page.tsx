@@ -2,13 +2,11 @@
 import AlbumClient from './AlbumClient';
 import { Loader2 } from 'lucide-react';
 
-export default async function AlbumPage({
+export default function AlbumPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
-
   return (
     <Suspense
       fallback={
@@ -17,7 +15,7 @@ export default async function AlbumPage({
         </div>
       }
     >
-      <AlbumClient slug={slug} />
+      <AlbumClient params={params} />
     </Suspense>
   );
 }
