@@ -1,69 +1,81 @@
-import Image from "next/image";
+﻿'use client';
 
-export default function Home() {
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { Camera, Search, ArrowRight, ShieldCheck } from 'lucide-react';
+import Link from 'next/link';
+
+export default function HomePage() {
+  const [eventCode, setEventCode] = useState('');
+  const router = useRouter();
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanSlug = eventCode.trim().toLowerCase().replace(/\s+/g, '-');
+    if (cleanSlug) {
+      router.push(`/e/${cleanSlug}`);
+    }
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-zinc-950 text-white flex flex-col justify-between selection:bg-white selection:text-black">
+      {/* Background Decorativo */}
+      <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-zinc-800/40 via-zinc-950 to-zinc-950 pointer-events-none" />
+
+      {/* Header */}
+      <header className="relative z-10 w-full max-w-5xl mx-auto px-6 py-8 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-md">
+            <Camera className="text-white" size={20} />
+          </div>
+          <span className="font-semibold tracking-wider text-sm uppercase">FotCabine Álbuns</span>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
+
+        <Link
+          href="/admin"
+          className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition px-3 py-2 rounded-lg hover:bg-white/5 border border-transparent hover:border-white/10"
+        >
+          <ShieldCheck size={15} /> Painel Admin
+        </Link>
+      </header>
+
+      {/* Hero / Acesso Rápido */}
+      <main className="relative z-10 max-w-2xl mx-auto w-full px-6 py-12 flex-1 flex flex-col items-center justify-center text-center">
+        <span className="text-xs uppercase tracking-widest text-zinc-400 mb-3 font-mono">
+          Galeria Digital em Tempo Real
+        </span>
+        <h1 className="text-4xl md:text-6xl font-serif tracking-tight text-white mb-6">
+          Acesse o Álbum do seu Evento
+        </h1>
+        <p className="text-zinc-400 text-sm md:text-base max-w-md mx-auto mb-10 font-light">
+          Insira o código ou identificador do evento fornecido pela equipe FotCabine para visualizar e descarregar as fotos.
+        </p>
+
+        <form onSubmit={handleSearch} className="w-full max-w-md space-y-3">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" size={18} />
+            <input
+              type="text"
+              value={eventCode}
+              onChange={(e) => setEventCode(e.target.value)}
+              placeholder="Digite o código (ex: casamento-ana-leo)"
+              className="w-full bg-zinc-900/90 border border-white/15 rounded-2xl pl-12 pr-4 py-4 text-white placeholder-zinc-500 focus:outline-none focus:border-white/40 transition shadow-inner text-sm md:text-base"
+              required
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+          </div>
+          <button
+            type="submit"
+            className="w-full bg-white hover:bg-zinc-200 text-black font-semibold py-4 rounded-2xl transition flex items-center justify-center gap-2 cursor-pointer shadow-lg hover:shadow-white/10"
           >
-            Documentation
-          </a>
-        </div>
+            Entrar no Álbum <ArrowRight size={18} />
+          </button>
+        </form>
       </main>
+
+      {/* Rodapé */}
+      <footer className="relative z-10 py-6 text-center text-xs text-zinc-600 border-t border-white/5">
+        FotCabine © 2026 • Plataforma de Álbuns Online
+      </footer>
     </div>
   );
 }
