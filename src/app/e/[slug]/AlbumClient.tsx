@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { Download, Loader2 } from 'lucide-react';
-import Link from 'next/link';
 
 export default function AlbumClient({
   params,
@@ -88,11 +87,8 @@ export default function AlbumClient({
   if (!event) {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 text-center">
-        <h2 className="text-xl font-semibold text-white mb-2">Evento não encontrado</h2>
-        <p className="text-zinc-500 text-xs font-mono mb-4">Slug procurado: "{currentSlug}"</p>
-        <Link href="/admin" className="text-blue-400 underline text-sm">
-          Acessar Painel Administrativo
-        </Link>
+        <h2 className="text-xl font-semibold text-white mb-2">Álbum não encontrado</h2>
+        <p className="text-zinc-500 text-xs">Verifique o link enviado no convite ou entre em contato com o evento.</p>
       </div>
     );
   }
@@ -154,7 +150,7 @@ export default function AlbumClient({
         </section>
 
         <footer className="text-center py-6 text-xs text-zinc-500 border-t border-white/5">
-          Álbum Digital do Evento
+          FotCabine • Álbum Digital do Evento
         </footer>
       </div>
     </div>
