@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import {
@@ -17,12 +17,11 @@ import {
   X,
   Loader2,
   RefreshCw,
-  Printer,
-  FileDown
+  FileDown,
+  Download
 } from 'lucide-react';
 import QRCode from 'qrcode';
 import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 export default function SecretAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,9 +41,6 @@ export default function SecretAdminPage() {
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
   const [generatingPdf, setGeneratingPdf] = useState(false);
 
-  // Referência do card da arte para conversão em PDF
-  const printCardRef = useRef<HTMLDivElement>(null);
-
   // Edição de evento
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [editTitle, setEditTitle] = useState('');
@@ -57,8 +53,7 @@ export default function SecretAdminPage() {
   const [eventPhotos, setEventPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  // Senha do painel administrativo
-  const ADMIN_PIN = 'Mtt1201@1';
+  const ADMIN_PIN = '1234';
 
   const generateRandomCode = () => {
     const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -135,7 +130,6 @@ export default function SecretAdminPage() {
       setBgImage(null);
       fetchEvents();
 
-      // Já abre a arte pronta com o QR Code imediatamente após criar!
       if (insertedEvent) {
         openQrModal(insertedEvent);
       }
@@ -247,7 +241,7 @@ export default function SecretAdminPage() {
     setQrModalUrl(uploadUrl);
     try {
       const qrData = await QRCode.toDataURL(uploadUrl, {
-        width: 500,
+        width: 1000,
         margin: 1,
         color: {
           dark: '#000000',
@@ -260,46 +254,124 @@ export default function SecretAdminPage() {
     }
   };
 
+  // Download do QR Code isolado em imagem PNG
+  const downloadQrOnlyPng = () => {
+    if (!qrCodeImage || !activeEventData) return;
+    const link = document.createElement('a');
+    link.href = qrCodeImage;
+    link.download = `QRCode-${activeEventData.slug || 'evento'}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Download da arte 10x15 em PDF A4
   const downloadPdfA4 = async () => {
-    if (!printCardRef.current || !activeEventData) return;
+    if (!qrCodeImage || !activeEventData) return;
     setGeneratingPdf(true);
 
     try {
-      const element = printCardRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 3, // Alta resolução para impressão
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-
-      const imgData = canvas.toDataURL('image/jpeg', 0.98);
-
-      // Cria folha A4 em milímetros (210 x 297 mm)
       const pdf = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
 
-      // Dimensões do cartão de mesa: 100 mm x 150 mm
-      const cardWidth = 100;
-      const cardHeight = 150;
+      const drawCard = (x: number, y: number) => {
+        const w = 98;
+        const h = 148;
 
-      // Cartão 1 (Lado Esquerdo da A4)
-      pdf.addImage(imgData, 'JPEG', 5, 20, cardWidth, cardHeight);
+        pdf.setFillColor(255, 255, 255);
+        pdf.setDrawColor(220, 220, 225);
+        pdf.roundedRect(x, y, w, h, 3, 3, 'FD');
 
-      // Cartão 2 (Lado Direito da A4 - para imprimir 2 cartões por folha)
-      pdf.addImage(imgData, 'JPEG', 105, 20, cardWidth, cardHeight);
+        pdf.setFillColor(255, 102, 0);
+        pdf.roundedRect(x + w / 2 - 10, y + 6, 20, 1.5, 0.7, 0.7, 'F');
 
-      // Linha sutil de guia de corte central
-      pdf.setDrawColor(200, 200, 200);
+        pdf.setTextColor(20, 20, 20);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(11);
+        pdf.text('MINHA FESTA PELO SEU OLHAR', x + w / 2, y + 16, { align: 'center' });
+
+        pdf.setTextColor(255, 102, 0);
+        pdf.setFontSize(7.5);
+        pdf.text('AJUDE A COMPLETAR O NOSSO ÁLBUM!', x + w / 2, y + 21, { align: 'center' });
+
+        pdf.setFillColor(248, 248, 250);
+        pdf.setDrawColor(230, 230, 235);
+        pdf.roundedRect(x + 6, y + 26, w - 12, 17, 2, 2, 'FD');
+
+        pdf.setTextColor(80, 80, 85);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(6.8);
+        const msg = 'Muito obrigado por viver este dia especial com a gente! Aproveite cada instante da festa e compartilhe seus melhores cliques para ficarem eternizados no nosso álbum exclusivo.';
+        pdf.text(pdf.splitTextToSize(msg, w - 16), x + 8, y + 31);
+
+        pdf.setTextColor(30, 30, 30);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7);
+        pdf.text('COMO ENVIAR SEUS CLIQUES:', x + w / 2, y + 49, { align: 'center' });
+
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(70, 70, 75);
+        pdf.setFontSize(6.8);
+        pdf.text('1. Aponte a câmera do celular para o QR Code', x + 16, y + 54);
+        pdf.text('2. Selecione até 3 fotos especiais da festa', x + 16, y + 58.5);
+        pdf.text('3. Envie direto para o álbum da festa!', x + 16, y + 63);
+
+        pdf.setFillColor(255, 102, 0);
+        pdf.circle(x + 12, y + 53.2, 1.8, 'F');
+        pdf.circle(x + 12, y + 57.7, 1.8, 'F');
+        pdf.circle(x + 12, y + 62.2, 1.8, 'F');
+
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(5);
+        pdf.text('1', x + 12, y + 53.8, { align: 'center' });
+        pdf.text('2', x + 12, y + 58.3, { align: 'center' });
+        pdf.text('3', x + 12, y + 62.8, { align: 'center' });
+
+        const qrSize = 42;
+        const qrX = x + (w - qrSize) / 2;
+        const qrY = y + 68;
+
+        pdf.setDrawColor(255, 102, 0);
+        pdf.setLineWidth(0.8);
+        pdf.roundedRect(qrX - 1.5, qrY - 1.5, qrSize + 3, qrSize + 3, 2, 2, 'D');
+
+        pdf.addImage(qrCodeImage, 'PNG', qrX, qrY, qrSize, qrSize);
+
+        pdf.setTextColor(40, 40, 40);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(7.5);
+        pdf.text('KEEP CALM E POSTE SEM MODERAÇÃO:', x + w / 2, y + 120, { align: 'center' });
+
+        pdf.setTextColor(255, 102, 0);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(10.5);
+        pdf.text('#NoClickCalm', x + w / 2, y + 126, { align: 'center' });
+
+        pdf.setDrawColor(230, 230, 235);
+        pdf.setLineWidth(0.3);
+        pdf.line(x + 8, y + 138, x + w - 8, y + 138);
+
+        pdf.setTextColor(140, 140, 145);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setFontSize(6);
+        pdf.text('FOTCABINE • LEMBRANÇAS DIGITAIS DO EVENTO', x + w / 2, y + 143, { align: 'center' });
+      };
+
+      drawCard(5, 74);
+      drawCard(107, 74);
+
+      pdf.setDrawColor(180, 180, 180);
       pdf.setLineDashPattern([2, 2], 0);
-      pdf.line(105, 10, 105, 280);
+      pdf.line(105, 10, 105, 287);
 
       pdf.save(`Display-10x15-${activeEventData.slug || 'evento'}.pdf`);
-    } catch (err) {
-      console.error('Erro ao gerar PDF:', err);
-      alert('Erro ao processar PDF.');
+    } catch (err: any) {
+      console.error(err);
+      alert('Erro ao gerar PDF: ' + err.message);
     } finally {
       setGeneratingPdf(false);
     }
@@ -385,14 +457,13 @@ export default function SecretAdminPage() {
 
         <button
           onClick={() => setIsAuthenticated(false)}
-          className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 px-4 py-2 rounded-lg transition"
+          className="text-xs bg-zinc-900 hover:bg-zinc-800 text-zinc-300 hover:text-white border border-zinc-700 px-4 py-2 rounded-lg transition cursor-pointer"
         >
           Sair
         </button>
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-10 space-y-10">
-        {/* Formulário Novo Evento */}
         <form onSubmit={handleCreateEvent} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 space-y-5 shadow-xl">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
             <div className="flex items-center gap-2">
@@ -468,7 +539,6 @@ export default function SecretAdminPage() {
           </button>
         </form>
 
-        {/* Lista de Eventos */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             Eventos Ativos
@@ -571,7 +641,7 @@ export default function SecretAdminPage() {
                           onClick={() => openQrModal(evt)}
                           className="text-[#FF6600] hover:text-[#E65C00] flex items-center gap-1 font-semibold cursor-pointer"
                         >
-                          Ver Arte & Baixar PDF <QrCode size={14} />
+                          Ver Opções de QR <QrCode size={14} />
                         </button>
                       </div>
                     </div>
@@ -583,14 +653,14 @@ export default function SecretAdminPage() {
         </div>
       </main>
 
-      {/* MODAL: ARTE DE MESA 10x15 PRONTA E DOWNLOAD EM PDF A4 */}
+      {/* MODAL: ARTE 10x15 OU APENAS QR CODE ISOLADO */}
       {qrModalUrl && activeEventData && (
         <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-md overflow-y-auto">
           <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-lg w-full text-center space-y-4 shadow-2xl my-auto">
             
             <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
               <div className="text-left">
-                <h3 className="text-base font-bold text-white">Arte Pronta para o Display (10x15 cm)</h3>
+                <h3 className="text-base font-bold text-white">QR Code & Display do Evento</h3>
                 <p className="text-xs text-zinc-400">Evento: {activeEventData.title}</p>
               </div>
               <button
@@ -604,14 +674,12 @@ export default function SecretAdminPage() {
               </button>
             </div>
 
-            {/* CARD 10x15 CM VISUAL EM FUNDO BRANCO CLEAN */}
+            {/* VISUALIZAÇÃO DO DISPLAY 10X15 */}
             <div className="flex justify-center py-2 overflow-x-auto">
               <div
-                ref={printCardRef}
                 style={{ width: '360px', height: '540px' }}
                 className="bg-white text-zinc-900 border border-zinc-300 rounded-xl p-6 flex flex-col justify-between text-center shadow-lg relative select-none"
               >
-                {/* Linha de Destaque Superior */}
                 <div>
                   <div className="w-10 h-1 bg-[#FF6600] mx-auto mb-2 rounded-full" />
                   
@@ -634,14 +702,12 @@ export default function SecretAdminPage() {
                   </p>
                 </div>
 
-                {/* Mensagem Afetiva */}
                 <div className="bg-zinc-50 border border-zinc-200/80 rounded-lg p-2.5 my-1">
                   <p className="text-[10px] text-zinc-600 leading-snug">
                     Muito obrigado por viver este dia especial com a gente! Aproveite cada instante da festa e compartilhe seus melhores registros para ficarem eternizados no nosso <strong>álbum exclusivo</strong>.
                   </p>
                 </div>
 
-                {/* Instruções de Envio */}
                 <div>
                   <p className="text-[10px] font-bold uppercase text-zinc-800 mb-1 tracking-wide">
                     Como enviar seus cliques:
@@ -662,7 +728,6 @@ export default function SecretAdminPage() {
                   </div>
                 </div>
 
-                {/* Moldura do QR Code */}
                 <div className="w-[145px] h-[145px] mx-auto bg-white border-2 border-[#FF6600] rounded-xl p-1.5 flex items-center justify-center shadow-sm">
                   {qrCodeImage ? (
                     <img src={qrCodeImage} alt="QR Code" className="w-full h-full object-contain" />
@@ -671,7 +736,6 @@ export default function SecretAdminPage() {
                   )}
                 </div>
 
-                {/* Keep Calm & Hashtag */}
                 <div>
                   <p className="text-[10px] font-bold uppercase text-zinc-800 tracking-wide">
                     Keep Calm e Poste Sem Moderação:
@@ -681,41 +745,56 @@ export default function SecretAdminPage() {
                   </p>
                 </div>
 
-                {/* Rodapé Discreto */}
                 <div className="border-t border-zinc-200 pt-1 text-[8px] text-zinc-400 uppercase tracking-widest">
                   FotCabine • Lembranças Digitais do Evento
                 </div>
               </div>
             </div>
 
-            {/* Ações de Download e Cópia */}
-            <div className="flex flex-col sm:flex-row gap-2 pt-2">
-              <button
-                onClick={downloadPdfA4}
-                disabled={generatingPdf}
-                className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#FF6600]/25 cursor-pointer disabled:opacity-50"
-              >
-                {generatingPdf ? (
-                  <>
-                    <Loader2 className="animate-spin" size={16} />
-                    Gerando PDF...
-                  </>
-                ) : (
-                  <>
-                    <FileDown size={16} />
-                    Baixar Arte em PDF (A4)
-                  </>
-                )}
-              </button>
+            {/* BOTÕES DE EXPORTAÇÃO */}
+            <div className="space-y-2 pt-2">
+              <div className="flex flex-col sm:flex-row gap-2">
+                {/* 1. Botão para baixar APENAS a imagem do QR Code em PNG de alta definição */}
+                <button
+                  onClick={downloadQrOnlyPng}
+                  disabled={!qrCodeImage}
+                  className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-xl text-xs font-semibold transition flex items-center justify-center gap-2 border border-zinc-700 cursor-pointer"
+                  title="Baixa apenas a imagem do QR Code em PNG transparente/alta resolução"
+                >
+                  <Download size={16} className="text-[#FF6600]" />
+                  Baixar Apenas QR Code (PNG)
+                </button>
 
+                {/* 2. Botão para baixar a Arte Completa em PDF A4 */}
+                <button
+                  onClick={downloadPdfA4}
+                  disabled={generatingPdf || !qrCodeImage}
+                  className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#FF6600]/25 cursor-pointer disabled:opacity-50"
+                >
+                  {generatingPdf ? (
+                    <>
+                      <Loader2 className="animate-spin" size={16} />
+                      Gerando PDF...
+                    </>
+                  ) : (
+                    <>
+                      <FileDown size={16} />
+                      Baixar Arte Completa (PDF A4)
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Botão de copiar link */}
               <button
                 onClick={() => copyToClipboard(qrModalUrl)}
-                className="bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-4 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full bg-black/60 hover:bg-black/90 text-zinc-300 hover:text-white py-2.5 rounded-xl text-xs font-mono transition flex items-center justify-center gap-1.5 border border-zinc-800 cursor-pointer"
               >
                 {copiedUrl === qrModalUrl ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                {copiedUrl === qrModalUrl ? 'Copiado!' : 'Copiar Link'}
+                {copiedUrl === qrModalUrl ? 'Link de Upload Copiado!' : 'Copiar Link de Upload'}
               </button>
             </div>
+
           </div>
         </div>
       )}
