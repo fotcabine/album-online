@@ -16,8 +16,8 @@ export default function UploadClient({
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // Controle de Primeiro Acesso / Tela de Mensagem
-  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  // MODO TESTE: Sempre abre a tela de recados (sem travar por dispositivo)
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(true);
   const [authorName, setAuthorName] = useState('');
   const [guestMessage, setGuestMessage] = useState('');
   const [generatingMessageCard, setGeneratingMessageCard] = useState(false);
@@ -46,10 +46,8 @@ export default function UploadClient({
         if (error) console.error('Erro ao buscar evento:', error);
         if (data) {
           setEvent(data);
-          const hasLeftMessage = localStorage.getItem(`msg_sent_${data.id}`);
-          if (!hasLeftMessage) {
-            setShowWelcomeMessage(true);
-          }
+          // Modo teste ativo: sempre mostra a tela de mensagem inicialmente
+          setShowWelcomeMessage(true);
         }
       } catch (err) {
         console.error(err);
@@ -113,8 +111,6 @@ export default function UploadClient({
         }
         lines.push(line.trim());
 
-        // O centro útil do balão fica em Y = 420.
-        // Calculamos a altura do bloco de texto para centralizar verticalmente:
         const totalTextHeight = lines.length * lineHeight;
         let startY = 420 - totalTextHeight / 2;
 
@@ -123,8 +119,8 @@ export default function UploadClient({
           startY += lineHeight;
         }
 
-        // Nome do Convidado posicionado LOGO ABAIXO da mensagem (dentro da área branca)
-        const authorY = Math.min(startY + 45, 690); // trava para nunca descer até a cauda
+        // Nome do Convidado posicionado dentro da área branca
+        const authorY = Math.min(startY + 45, 690);
 
         ctx.fillStyle = '#27272a';
         ctx.font = 'bold 26px sans-serif';
@@ -134,7 +130,6 @@ export default function UploadClient({
       };
 
       bgImg.onerror = () => {
-        // Fallback caso o svg demore a responder
         canvas.width = 1080;
         canvas.height = 1080;
         ctx.fillStyle = '#ffffff';
@@ -186,13 +181,15 @@ export default function UploadClient({
         guest_name: authorName.trim(),
       });
 
-      localStorage.setItem(`msg_sent_${event.id}`, 'true');
+      // Durante os testes não travamos o dispositivo
       setGuestName(authorName.trim());
       setMessageSentSuccess(true);
 
       setTimeout(() => {
+        setMessageSentSuccess(false);
+        setGuestMessage('');
         setShowWelcomeMessage(false);
-      }, 1500);
+      }, 1200);
     } catch (err: any) {
       console.error(err);
       alert('Erro ao enviar mensagem: ' + err.message);
