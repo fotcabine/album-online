@@ -31,7 +31,6 @@ export default function UploadClient({
   const [uploadComplete, setUploadComplete] = useState(false);
   const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
-  // Canvas invisível para desenhar o card da mensagem
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -47,7 +46,6 @@ export default function UploadClient({
         if (error) console.error('Erro ao buscar evento:', error);
         if (data) {
           setEvent(data);
-          // Verifica se este dispositivo já enviou mensagem neste evento
           const hasLeftMessage = localStorage.getItem(`msg_sent_${data.id}`);
           if (!hasLeftMessage) {
             setShowWelcomeMessage(true);
@@ -62,7 +60,7 @@ export default function UploadClient({
     loadEvent();
   }, [currentSlug]);
 
-  // Função para desenhar o Card Elegante no Canvas e converter em imagem
+  // Carrega o SVG base e desenha o texto sobre ele no Canvas
   const generateCardBlob = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current;
@@ -71,75 +69,81 @@ export default function UploadClient({
       const ctx = canvas.getContext('2d');
       if (!ctx) return resolve(null);
 
-      // Resolução quadrada clássica de post (1080 x 1080 px)
-      canvas.width = 1080;
-      canvas.height = 1080;
+      const bgImg = new window.Image();
+      bgImg.crossOrigin = 'anonymous';
+      bgImg.src = '/balao-recado.svg';
 
-      // Fundo Branco Clean
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, 1080, 1080);
+      bgImg.onload = () => {
+        canvas.width = 1080;
+        canvas.height = 1080;
 
-      // Efeito aquarela suave no centro (mancha artística suave)
-      const grad = ctx.createRadialGradient(540, 500, 50, 540, 500, 380);
-      grad.addColorStop(0, 'rgba(255, 102, 0, 0.08)');
-      grad.addColorStop(0.6, 'rgba(255, 230, 210, 0.25)');
-      grad.addColorStop(1, 'rgba(255, 255, 255, 0)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(100, 150, 880, 700);
+        // Fundo Branco
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 1080, 1080);
 
-      // Balão de citação (Borda cinza escura elegante)
-      ctx.strokeStyle = '#27272a';
-      ctx.lineWidth = 14;
-      ctx.lineJoin = 'round';
-      ctx.strokeRect(90, 90, 900, 800);
+        // Desenha a sua arte base do balão (SVG)
+        ctx.drawImage(bgImg, 0, 0, 1080, 1080);
 
-      // Aspas duplas estilizadas no canto superior esquerdo
-      ctx.fillStyle = '#27272a';
-      ctx.font = 'bold 130px Georgia, serif';
-      ctx.fillText('“', 140, 200);
+        // Configuração de texto da mensagem
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'italic 36px "Georgia", serif';
+        ctx.textAlign = 'center';
 
-      // Texto da mensagem (com quebra automática de linhas)
-      ctx.fillStyle = '#18181b';
-      ctx.font = 'italic 38px "Georgia", serif';
-      ctx.textAlign = 'center';
+        const maxWidth = 760;
+        const lineHeight = 54;
+        const words = guestMessage.trim().split(' ');
+        let line = '';
+        const lines: string[] = [];
 
-      const maxWidth = 760;
-      const lineHeight = 56;
-      const words = guestMessage.trim().split(' ');
-      let line = '';
-      const lines: string[] = [];
-
-      for (let n = 0; n < words.length; n++) {
-        const testLine = line + words[n] + ' ';
-        const metrics = ctx.measureText(testLine);
-        if (metrics.width > maxWidth && n > 0) {
-          lines.push(line.trim());
-          line = words[n] + ' ';
-        } else {
-          line = testLine;
+        for (let n = 0; n < words.length; n++) {
+          const testLine = line + words[n] + ' ';
+          const metrics = ctx.measureText(testLine);
+          if (metrics.width > maxWidth && n > 0) {
+            lines.push(line.trim());
+            line = words[n] + ' ';
+          } else {
+            line = testLine;
+          }
         }
-      }
-      lines.push(line.trim());
+        lines.push(line.trim());
 
-      // Centraliza verticalmente o texto dentro do balão
-      let startY = 480 - ((lines.length - 1) * lineHeight) / 2;
-      for (const l of lines) {
-        ctx.fillText(l, 540, startY);
-        startY += lineHeight;
-      }
+        // Centraliza verticalmente o texto no miolo do balão
+        let startY = 490 - ((lines.length - 1) * lineHeight) / 2;
+        for (const l of lines) {
+          ctx.fillText(l, 540, startY);
+          startY += lineHeight;
+        }
 
-      // Nome do Convidado na base (Caixa alta e cor azul/escura elegante)
-      ctx.fillStyle = '#09090b';
-      ctx.font = 'bold 32px sans-serif';
-      ctx.letterSpacing = '2px';
-      ctx.fillText(authorName.trim().toUpperCase(), 540, 960);
+        // Nome do Convidado na base
+        ctx.fillStyle = '#09090b';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText(authorName.trim().toUpperCase(), 540, 960);
 
-      // Assinatura discreta do evento
-      ctx.fillStyle = '#FF6600';
-      ctx.font = 'bold 22px sans-serif';
-      ctx.fillText(event?.title?.toUpperCase() || 'ÁLBUM OFICIAL', 540, 1005);
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+      };
 
-      canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+      bgImg.onerror = () => {
+        // Fallback: se o SVG falhar ao carregar, desenha o balão vetorial direto
+        canvas.width = 1080;
+        canvas.height = 1080;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, 1080, 1080);
+
+        ctx.strokeStyle = '#27272a';
+        ctx.lineWidth = 14;
+        ctx.strokeRect(90, 90, 900, 800);
+
+        ctx.fillStyle = '#18181b';
+        ctx.font = 'italic 36px "Georgia", serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(guestMessage.trim(), 540, 480);
+
+        ctx.fillStyle = '#09090b';
+        ctx.font = 'bold 30px sans-serif';
+        ctx.fillText(authorName.trim().toUpperCase(), 540, 960);
+
+        canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
+      };
     });
   };
 
@@ -171,9 +175,8 @@ export default function UploadClient({
         guest_name: authorName.trim(),
       });
 
-      // Grava no localStorage para não pedir novamente neste aparelho
       localStorage.setItem(`msg_sent_${event.id}`, 'true');
-      setGuestName(authorName.trim()); // Pré-preenche o nome para o envio das fotos
+      setGuestName(authorName.trim());
       setMessageSentSuccess(true);
 
       setTimeout(() => {
@@ -268,7 +271,6 @@ export default function UploadClient({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative flex flex-col justify-between selection:bg-[#FF6600]">
-      {/* Background do Evento */}
       {event.bg_image_url && (
         <div
           className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-20 filter saturate-50 contrast-125 z-0"
@@ -277,10 +279,8 @@ export default function UploadClient({
       )}
       <div className="fixed inset-0 bg-gradient-to-b from-black/85 via-black/60 to-black/90 pointer-events-none z-0" />
 
-      {/* Canvas oculto para desenhar a imagem do card */}
       <canvas ref={canvasRef} style={{ display: 'none' }} />
 
-      {/* Barra Superior FotCabine */}
       <header className="relative z-10 bg-black/90 border-b-4 border-[#FF6600] px-6 py-4 shadow-md backdrop-blur-md">
         <div className="max-w-xl mx-auto flex items-center justify-between">
           <Image
@@ -297,7 +297,6 @@ export default function UploadClient({
         </div>
       </header>
 
-      {/* TELA 1: PRIMEIRO ACESSO - DEIXAR MENSAGEM ELEGANTE */}
       {showWelcomeMessage ? (
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
@@ -380,7 +379,6 @@ export default function UploadClient({
           </form>
         </main>
       ) : (
-        /* TELA 2: ENVIO DE FOTOS REGULAR (ATÉ 3 FOTOS) */
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold font-serif text-white">{event.title}</h1>
