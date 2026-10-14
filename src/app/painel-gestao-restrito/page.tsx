@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import {
@@ -16,9 +16,13 @@ import {
   Copy,
   X,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  Printer,
+  FileDown
 } from 'lucide-react';
 import QRCode from 'qrcode';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export default function SecretAdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -31,21 +35,30 @@ export default function SecretAdminPage() {
   const [bgImage, setBgImage] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Modais de QR Code e Arte
   const [qrModalUrl, setQrModalUrl] = useState<string | null>(null);
   const [qrCodeImage, setQrCodeImage] = useState<string | null>(null);
+  const [activeEventData, setActiveEventData] = useState<any | null>(null);
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+  const [generatingPdf, setGeneratingPdf] = useState(false);
 
+  // Referência do card da arte para conversão em PDF
+  const printCardRef = useRef<HTMLDivElement>(null);
+
+  // Edição de evento
   const [editingEvent, setEditingEvent] = useState<any | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDate, setEditDate] = useState('');
   const [editBgImage, setEditBgImage] = useState<File | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
+  // Moderação de fotos
   const [managingPhotosEvent, setManagingPhotosEvent] = useState<any | null>(null);
   const [eventPhotos, setEventPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
-  const ADMIN_PIN = 'Mtt1201@1';
+  // Senha do painel administrativo
+  const ADMIN_PIN = '1234';
 
   const generateRandomCode = () => {
     const chars = '23456789abcdefghjkmnpqrstuvwxyz';
@@ -101,14 +114,18 @@ export default function SecretAdminPage() {
 
       const cleanSlug = slug.trim().toLowerCase().replace(/\s+/g, '-');
 
-      const { error: insertError } = await supabase.from('events').insert([
-        {
-          title,
-          slug: cleanSlug,
-          event_date: eventDate,
-          bg_image_url: bgImageUrl,
-        },
-      ]);
+      const { data: insertedEvent, error: insertError } = await supabase
+        .from('events')
+        .insert([
+          {
+            title,
+            slug: cleanSlug,
+            event_date: eventDate,
+            bg_image_url: bgImageUrl,
+          },
+        ])
+        .select()
+        .single();
 
       if (insertError) throw insertError;
 
@@ -117,6 +134,11 @@ export default function SecretAdminPage() {
       setEventDate('');
       setBgImage(null);
       fetchEvents();
+
+      // Já abre a arte pronta com o QR Code imediatamente após criar!
+      if (insertedEvent) {
+        openQrModal(insertedEvent);
+      }
     } catch (err: any) {
       alert('Erro ao criar evento: ' + err.message);
     } finally {
@@ -125,7 +147,7 @@ export default function SecretAdminPage() {
   };
 
   const handleDeleteEvent = async (id: string, eventTitle: string) => {
-    if (!confirm(`Deseja realmente eliminar o evento "${eventTitle}" e todas as fotografias associadas?`)) return;
+    if (!confirm(`Deseja realmente eliminar o evento "${eventTitle}" e todas as fotos associadas?`)) return;
     try {
       await supabase.from('photos').delete().eq('event_id', id);
       const { error } = await supabase.from('events').delete().eq('id', id);
@@ -208,25 +230,78 @@ export default function SecretAdminPage() {
   };
 
   const handleDeletePhoto = async (photoId: string) => {
-    if (!confirm('Deseja eliminar esta fotografia do álbum?')) return;
+    if (!confirm('Deseja excluir esta foto do álbum?')) return;
     try {
       const { error } = await supabase.from('photos').delete().eq('id', photoId);
       if (error) throw error;
       setEventPhotos((prev) => prev.filter((p) => p.id !== photoId));
       fetchEvents();
     } catch (err: any) {
-      alert('Erro ao eliminar fotografia: ' + err.message);
+      alert('Erro ao eliminar foto: ' + err.message);
     }
   };
 
-  const openQrModal = async (eventSlug: string) => {
-    const uploadUrl = `https://albumonline.fotcabine.com.br/e/${eventSlug}/upload`;
+  const openQrModal = async (eventObj: any) => {
+    setActiveEventData(eventObj);
+    const uploadUrl = `https://albumonline.fotcabine.com.br/e/${eventObj.slug}/upload`;
     setQrModalUrl(uploadUrl);
     try {
-      const qrData = await QRCode.toDataURL(uploadUrl, { width: 320, margin: 2 });
+      const qrData = await QRCode.toDataURL(uploadUrl, {
+        width: 500,
+        margin: 1,
+        color: {
+          dark: '#000000',
+          light: '#ffffff',
+        },
+      });
       setQrCodeImage(qrData);
     } catch (err) {
       console.error(err);
+    }
+  };
+
+  const downloadPdfA4 = async () => {
+    if (!printCardRef.current || !activeEventData) return;
+    setGeneratingPdf(true);
+
+    try {
+      const element = printCardRef.current;
+      const canvas = await html2canvas(element, {
+        scale: 3, // Alta resolução para impressão
+        useCORS: true,
+        backgroundColor: '#ffffff',
+      });
+
+      const imgData = canvas.toDataURL('image/jpeg', 0.98);
+
+      // Cria folha A4 em milímetros (210 x 297 mm)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+
+      // Dimensões do cartão de mesa: 100 mm x 150 mm
+      const cardWidth = 100;
+      const cardHeight = 150;
+
+      // Cartão 1 (Lado Esquerdo da A4)
+      pdf.addImage(imgData, 'JPEG', 5, 20, cardWidth, cardHeight);
+
+      // Cartão 2 (Lado Direito da A4 - para imprimir 2 cartões por folha)
+      pdf.addImage(imgData, 'JPEG', 105, 20, cardWidth, cardHeight);
+
+      // Linha sutil de guia de corte central
+      pdf.setDrawColor(200, 200, 200);
+      pdf.setLineDashPattern([2, 2], 0);
+      pdf.line(105, 10, 105, 280);
+
+      pdf.save(`Display-10x15-${activeEventData.slug || 'evento'}.pdf`);
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err);
+      alert('Erro ao processar PDF.');
+    } finally {
+      setGeneratingPdf(false);
     }
   };
 
@@ -251,7 +326,7 @@ export default function SecretAdminPage() {
             />
             <div className="border-l border-zinc-700 pl-3 hidden sm:block">
               <h1 className="text-white text-base font-semibold leading-tight">Álbum Digital Online</h1>
-              <p className="text-zinc-400 text-xs">Gestão restrita</p>
+              <p className="text-zinc-400 text-xs">Acesso restrito</p>
             </div>
           </div>
         </header>
@@ -266,7 +341,7 @@ export default function SecretAdminPage() {
             </div>
             <div>
               <h2 className="text-2xl font-bold text-white">Painel Restrito</h2>
-              <p className="text-xs text-zinc-400 mt-1">Introduza a sua credencial para continuar.</p>
+              <p className="text-xs text-zinc-400 mt-1">Introduza a sua senha para gerenciar.</p>
             </div>
 
             <input
@@ -304,7 +379,7 @@ export default function SecretAdminPage() {
           />
           <div className="border-l border-zinc-700 pl-3 hidden sm:block">
             <h1 className="text-white text-base font-semibold leading-tight">Gerenciador de Eventos</h1>
-            <p className="text-zinc-400 text-xs font-mono">Área Administrativa Privada</p>
+            <p className="text-zinc-400 text-xs font-mono">albumonline.fotcabine.com.br</p>
           </div>
         </div>
 
@@ -317,6 +392,7 @@ export default function SecretAdminPage() {
       </header>
 
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-10 space-y-10">
+        {/* Formulário Novo Evento */}
         <form onSubmit={handleCreateEvent} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 space-y-5 shadow-xl">
           <div className="flex items-center justify-between border-b border-zinc-800 pb-3">
             <div className="flex items-center gap-2">
@@ -328,7 +404,7 @@ export default function SecretAdminPage() {
             <button
               type="button"
               onClick={generateRandomCode}
-              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-[#FF6600] border border-zinc-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition"
+              className="text-xs bg-zinc-800 hover:bg-zinc-700 text-[#FF6600] border border-zinc-700 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition cursor-pointer"
             >
               <RefreshCw size={12} /> Gerar Código Mascarado
             </button>
@@ -388,10 +464,11 @@ export default function SecretAdminPage() {
             disabled={loading}
             className="bg-[#FF6600] hover:bg-[#E65C00] text-white font-semibold px-6 py-3 rounded-xl transition duration-200 text-sm cursor-pointer disabled:opacity-50 shadow-md shadow-[#FF6600]/20"
           >
-            {loading ? 'A criar evento...' : 'Criar Evento'}
+            {loading ? 'Criando evento...' : 'Criar Evento e Gerar Arte'}
           </button>
         </form>
 
+        {/* Lista de Eventos */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             Eventos Ativos
@@ -429,14 +506,14 @@ export default function SecretAdminPage() {
                         <button
                           onClick={() => handleStartEdit(evt)}
                           title="Editar Título, Data ou Background"
-                          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition"
+                          className="p-2 rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-800 transition cursor-pointer"
                         >
                           <Edit2 size={16} />
                         </button>
                         <button
                           onClick={() => handleDeleteEvent(evt.id, evt.title)}
                           title="Eliminar Evento"
-                          className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition"
+                          className="p-2 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition cursor-pointer"
                         >
                           <Trash2 size={16} />
                         </button>
@@ -454,17 +531,17 @@ export default function SecretAdminPage() {
                   <div className="space-y-2.5 border-t border-zinc-800 pt-3">
                     <button
                       onClick={() => openManagePhotos(evt)}
-                      className="w-full text-xs font-semibold py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition flex items-center justify-center gap-2 border border-zinc-700"
+                      className="w-full text-xs font-semibold py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition flex items-center justify-center gap-2 border border-zinc-700 cursor-pointer"
                     >
                       <ImageIcon size={14} className="text-[#FF6600]" /> Moderação / Excluir Fotos ({photoCount})
                     </button>
 
                     <div className="flex items-center justify-between text-xs bg-black/60 p-2.5 rounded-xl border border-zinc-800">
-                      <span className="text-zinc-400">Álbum:</span>
+                      <span className="text-zinc-400">Álbum Oficial:</span>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => copyToClipboard(albumUrl)}
-                          className="hover:text-white text-zinc-400 transition"
+                          className="hover:text-white text-zinc-400 transition cursor-pointer"
                           title="Copiar Link do Álbum"
                         >
                           {copiedUrl === albumUrl ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
@@ -481,20 +558,20 @@ export default function SecretAdminPage() {
                     </div>
 
                     <div className="flex items-center justify-between text-xs bg-black/60 p-2.5 rounded-xl border border-zinc-800">
-                      <span className="text-zinc-400">Upload Convidados:</span>
+                      <span className="text-zinc-400">QR Code / Arte de Mesa:</span>
                       <div className="flex items-center gap-3">
                         <button
                           onClick={() => copyToClipboard(uploadUrl)}
-                          className="hover:text-white text-zinc-400 transition"
+                          className="hover:text-white text-zinc-400 transition cursor-pointer"
                           title="Copiar Link de Upload"
                         >
                           {copiedUrl === uploadUrl ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
                         </button>
                         <button
-                          onClick={() => openQrModal(evt.slug)}
-                          className="text-[#FF6600] hover:text-[#E65C00] flex items-center gap-1 font-medium"
+                          onClick={() => openQrModal(evt)}
+                          className="text-[#FF6600] hover:text-[#E65C00] flex items-center gap-1 font-semibold cursor-pointer"
                         >
-                          QR Code <QrCode size={13} />
+                          Ver Arte & Baixar PDF <QrCode size={14} />
                         </button>
                       </div>
                     </div>
@@ -506,6 +583,144 @@ export default function SecretAdminPage() {
         </div>
       </main>
 
+      {/* MODAL: ARTE DE MESA 10x15 PRONTA E DOWNLOAD EM PDF A4 */}
+      {qrModalUrl && activeEventData && (
+        <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-md overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-lg w-full text-center space-y-4 shadow-2xl my-auto">
+            
+            <div className="flex justify-between items-center border-b border-zinc-800 pb-3">
+              <div className="text-left">
+                <h3 className="text-base font-bold text-white">Arte Pronta para o Display (10x15 cm)</h3>
+                <p className="text-xs text-zinc-400">Evento: {activeEventData.title}</p>
+              </div>
+              <button
+                onClick={() => {
+                  setQrModalUrl(null);
+                  setActiveEventData(null);
+                }}
+                className="text-zinc-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* CARD 10x15 CM VISUAL EM FUNDO BRANCO CLEAN */}
+            <div className="flex justify-center py-2 overflow-x-auto">
+              <div
+                ref={printCardRef}
+                style={{ width: '360px', height: '540px' }}
+                className="bg-white text-zinc-900 border border-zinc-300 rounded-xl p-6 flex flex-col justify-between text-center shadow-lg relative select-none"
+              >
+                {/* Linha de Destaque Superior */}
+                <div>
+                  <div className="w-10 h-1 bg-[#FF6600] mx-auto mb-2 rounded-full" />
+                  
+                  <div className="flex justify-center mb-1">
+                    <img
+                      src="/logo-fundo-branco.png"
+                      alt="FotCabine"
+                      className="h-6 w-auto object-contain"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+
+                  <h2 className="text-base font-extrabold uppercase tracking-tight text-black leading-tight">
+                    Minha Festa pelo seu Olhar
+                  </h2>
+                  <p className="text-[11px] font-bold text-[#FF6600] tracking-wider uppercase mt-0.5">
+                    Ajude a completar o nosso álbum!
+                  </p>
+                </div>
+
+                {/* Mensagem Afetiva */}
+                <div className="bg-zinc-50 border border-zinc-200/80 rounded-lg p-2.5 my-1">
+                  <p className="text-[10px] text-zinc-600 leading-snug">
+                    Muito obrigado por viver este dia especial com a gente! Aproveite cada instante da festa e compartilhe seus melhores registros para ficarem eternizados no nosso <strong>álbum exclusivo</strong>.
+                  </p>
+                </div>
+
+                {/* Instruções de Envio */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-zinc-800 mb-1 tracking-wide">
+                    Como enviar seus cliques:
+                  </p>
+                  <div className="text-[9.5px] text-zinc-600 space-y-1 text-left max-w-[280px] mx-auto">
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-[#FF6600] text-white font-bold w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[8px] flex-shrink-0">1</span>
+                      <span>Aponte a câmera do celular para o QR Code</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-[#FF6600] text-white font-bold w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[8px] flex-shrink-0">2</span>
+                      <span>Selecione até 3 fotos especiais da festa</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="bg-[#FF6600] text-white font-bold w-3.5 h-3.5 rounded-full inline-flex items-center justify-center text-[8px] flex-shrink-0">3</span>
+                      <span>Envie direto para o álbum da festa!</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Moldura do QR Code */}
+                <div className="w-[145px] h-[145px] mx-auto bg-white border-2 border-[#FF6600] rounded-xl p-1.5 flex items-center justify-center shadow-sm">
+                  {qrCodeImage ? (
+                    <img src={qrCodeImage} alt="QR Code" className="w-full h-full object-contain" />
+                  ) : (
+                    <Loader2 className="animate-spin text-[#FF6600]" size={24} />
+                  )}
+                </div>
+
+                {/* Keep Calm & Hashtag */}
+                <div>
+                  <p className="text-[10px] font-bold uppercase text-zinc-800 tracking-wide">
+                    Keep Calm e Poste Sem Moderação:
+                  </p>
+                  <p className="text-sm font-black text-[#FF6600] tracking-wider mt-0.5">
+                    #NoClickCalm
+                  </p>
+                </div>
+
+                {/* Rodapé Discreto */}
+                <div className="border-t border-zinc-200 pt-1 text-[8px] text-zinc-400 uppercase tracking-widest">
+                  FotCabine • Lembranças Digitais do Evento
+                </div>
+              </div>
+            </div>
+
+            {/* Ações de Download e Cópia */}
+            <div className="flex flex-col sm:flex-row gap-2 pt-2">
+              <button
+                onClick={downloadPdfA4}
+                disabled={generatingPdf}
+                className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#FF6600]/25 cursor-pointer disabled:opacity-50"
+              >
+                {generatingPdf ? (
+                  <>
+                    <Loader2 className="animate-spin" size={16} />
+                    Gerando PDF...
+                  </>
+                ) : (
+                  <>
+                    <FileDown size={16} />
+                    Baixar Arte em PDF (A4)
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => copyToClipboard(qrModalUrl)}
+                className="bg-zinc-800 hover:bg-zinc-700 text-white py-3 px-4 rounded-xl text-xs font-medium transition flex items-center justify-center gap-1.5 cursor-pointer"
+              >
+                {copiedUrl === qrModalUrl ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {copiedUrl === qrModalUrl ? 'Copiado!' : 'Copiar Link'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDITAR EVENTO */}
       {editingEvent && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <form onSubmit={handleSaveEdit} className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
@@ -513,7 +728,7 @@ export default function SecretAdminPage() {
               <h3 className="text-lg font-bold flex items-center gap-2 text-white">
                 <Edit2 size={18} className="text-[#FF6600]" /> Editar Evento
               </h3>
-              <button type="button" onClick={() => setEditingEvent(null)} className="text-zinc-400 hover:text-white">
+              <button type="button" onClick={() => setEditingEvent(null)} className="text-zinc-400 hover:text-white cursor-pointer">
                 <X size={18} />
               </button>
             </div>
@@ -557,14 +772,14 @@ export default function SecretAdminPage() {
               <button
                 type="button"
                 onClick={() => setEditingEvent(null)}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-xl text-xs font-medium transition"
+                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2.5 rounded-xl text-xs font-medium transition cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 type="submit"
                 disabled={savingEdit}
-                className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-2.5 rounded-xl text-xs font-semibold transition disabled:opacity-50"
+                className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-2.5 rounded-xl text-xs font-semibold transition disabled:opacity-50 cursor-pointer"
               >
                 {savingEdit ? 'A guardar...' : 'Guardar Alterações'}
               </button>
@@ -573,6 +788,7 @@ export default function SecretAdminPage() {
         </div>
       )}
 
+      {/* MODAL: MODERAÇÃO DE FOTOS */}
       {managingPhotosEvent && (
         <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl">
@@ -581,7 +797,7 @@ export default function SecretAdminPage() {
                 <h3 className="text-lg font-bold text-white">Fotos: {managingPhotosEvent.title}</h3>
                 <p className="text-xs text-zinc-400">Total: {eventPhotos.length} fotografias enviadas</p>
               </div>
-              <button onClick={() => setManagingPhotosEvent(null)} className="text-zinc-400 hover:text-white">
+              <button onClick={() => setManagingPhotosEvent(null)} className="text-zinc-400 hover:text-white cursor-pointer">
                 <X size={20} />
               </button>
             </div>
@@ -610,7 +826,7 @@ export default function SecretAdminPage() {
                         </span>
                         <button
                           onClick={() => handleDeletePhoto(photo.id)}
-                          className="w-full bg-red-600 hover:bg-red-700 text-white py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-lg"
+                          className="w-full bg-red-600 hover:bg-red-700 text-white py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1 transition shadow-lg cursor-pointer"
                         >
                           <Trash2 size={13} /> Eliminar Foto
                         </button>
@@ -624,7 +840,7 @@ export default function SecretAdminPage() {
             <div className="border-t border-zinc-800 pt-3 flex justify-end">
               <button
                 onClick={() => setManagingPhotosEvent(null)}
-                className="bg-[#FF6600] hover:bg-[#E65C00] text-white px-6 py-2 rounded-xl text-xs font-semibold transition"
+                className="bg-[#FF6600] hover:bg-[#E65C00] text-white px-6 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
               >
                 Concluído
               </button>
@@ -633,37 +849,6 @@ export default function SecretAdminPage() {
         </div>
       )}
 
-      {qrModalUrl && (
-        <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
-          <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">
-            <h3 className="text-lg font-bold text-white">QR Code do Evento</h3>
-            <p className="text-xs text-zinc-400">Digitalize para enviar fotos diretamente</p>
-            {qrCodeImage && (
-              <img src={qrCodeImage} alt="QR Code" className="mx-auto rounded-xl p-3 bg-white shadow" />
-            )}
-            <input
-              type="text"
-              readOnly
-              value={qrModalUrl}
-              className="w-full bg-black border border-zinc-800 text-xs p-2.5 rounded-xl text-center text-zinc-300 font-mono"
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={() => copyToClipboard(qrModalUrl)}
-                className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white py-2 rounded-xl text-xs font-medium transition"
-              >
-                {copiedUrl === qrModalUrl ? 'Copiado!' : 'Copiar Link'}
-              </button>
-              <button
-                onClick={() => setQrModalUrl(null)}
-                className="flex-1 bg-[#FF6600] hover:bg-[#E65C00] text-white py-2 rounded-xl text-xs font-semibold transition"
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

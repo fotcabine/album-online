@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Display de Mesa 10x15 - Minha Festa pelo seu Olhar</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background: #e4e4e7;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    /* Proporção 10x15 vertical (400px x 600px em tela / 100mm x 150mm para impressão) */
+    .card-10x15 {
+      width: 400px;
+      height: 600px;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 28px 24px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: center;
+      color: #18181b;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+      position: relative;
+    }
+
+    /* Detalhe sutil superior em Laranja Vibrante */
+    .top-accent {
+      width: 44px;
+      height: 3px;
+      background: #FF6600;
+      margin: 0 auto 10px auto;
+      border-radius: 2px;
+    }
+
+    /* Logotipo / Assinatura de topo */
+    .logo-container {
+      margin-bottom: 6px;
+    }
+
+    .logo-container img {
+      height: 28px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* Título Conceito */
+    .concept-title {
+      font-size: 19px;
+      font-weight: 800;
+      color: #09090b;
+      letter-spacing: -0.3px;
+      text-transform: uppercase;
+      line-height: 1.2;
+    }
+
+    .concept-subtitle {
+      font-size: 13px;
+      font-weight: 700;
+      color: #FF6600;
+      margin-top: 3px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Bloco Afetivo / Agradecimento */
+    .message-box {
+      margin: 10px 0;
+      padding: 10px 14px;
+      background: #fafafa;
+      border: 1px dashed #e4e4e7;
+      border-radius: 10px;
+    }
+
+    .message-text {
+      font-size: 11px;
+      color: #52525b;
+      line-height: 1.45;
+      font-weight: 400;
+    }
+
+    .message-text strong {
+      color: #18181b;
+      font-weight: 600;
+    }
+
+    /* Instruções Rápidas */
+    .instruction-lead {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: #18181b;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .steps-list {
+      list-style: none;
+      font-size: 10.5px;
+      color: #52525b;
+      text-align: left;
+      margin: 0 auto;
+      max-width: 320px;
+      line-height: 1.4;
+    }
+
+    .steps-list li {
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .step-badge {
+      background: #FF6600;
+      color: #ffffff;
+      font-size: 9.5px;
+      font-weight: bold;
+      width: 17px;
+      height: 17px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    /* Espaço Exclusivo do QR Code */
+    .qr-frame {
+      width: 165px;
+      height: 165px;
+      margin: 6px auto;
+      background: #ffffff;
+      border: 2px solid #FF6600;
+      border-radius: 12px;
+      padding: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(255, 102, 0, 0.08);
+    }
+
+    .qr-placeholder-inner {
+      width: 100%;
+      height: 100%;
+      border: 1.5px dashed #d4d4d8;
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #3f3f46;
+      background: #fbfbfb;
+    }
+
+    .qr-icon {
+      font-size: 24px;
+      margin-bottom: 3px;
+    }
+
+    .qr-title {
+      font-size: 10px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #09090b;
+    }
+
+    .qr-note {
+      font-size: 8px;
+      color: #71717a;
+      margin-top: 2px;
+    }
+
+    /* Bloco Final / Keep Calm */
+    .callout-section {
+      margin-top: 4px;
+    }
+
+    .keep-calm-text {
+      font-size: 11px;
+      font-weight: 700;
+      color: #27272a;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .hashtag-text {
+      font-size: 16px;
+      font-weight: 900;
+      color: #FF6600;
+      letter-spacing: 0.8px;
+      margin-top: 2px;
+    }
+
+    /* Rodapé institucional sutil */
+    .footer-line {
+      font-size: 8.5px;
+      color: #a1a1aa;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      border-top: 1px solid #f4f4f5;
+      padding-top: 8px;
+      margin-top: 4px;
+    }
+
+    @media print {
+      body {
+        background: transparent;
+        padding: 0;
+      }
+      .card-10x15 {
+        box-shadow: none;
+        border: 1px solid #d4d4d8;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="card-10x15">
+    
+    <!-- Topo -->
+    <div>
+      <div class="top-accent"></div>
+      
+      <!-- Espaço para logo-fundo-branco.png da FotCabine -->
+      <div class="logo-container">
+        <img src="/logo-fundo-branco.png" alt="FotCabine" onerror="this.style.display='none'">
+      </div>
+
+      <h1 class="concept-title">Minha Festa pelo seu Olhar</h1>
+      <p class="concept-subtitle">AJUDE A COMPLETAR O NOSSO ÁLBUM!</p>
+    </div>
+
+    <!-- Mensagem Afetiva e Importância do Convidado -->
+    <div class="message-box">
+      <p class="message-text">
+        Muito obrigado por viver este dia tão especial com a gente! A sua presença faz tudo ser único. 
+        Aproveite cada instante da festa e compartilhe seus melhores registros para que eles fiquem eternizados no nosso <strong>álbum exclusivo</strong>.
+      </p>
+    </div>
+
+    <!-- Instruções de Envio -->
+    <div>
+      <div class="instruction-lead">Como enviar seus cliques:</div>
+      <ul class="steps-list">
+        <li>
+          <span class="step-badge">1</span>
+          <span>Aponte a câmera do seu celular para o QR Code</span>
+        </li>
+        <li>
+          <span class="step-badge">2</span>
+          <span>Selecione até 3 fotos especiais da sua galeria</span>
+        </li>
+        <li>
+          <span class="step-badge">3</span>
+          <span>Envie direto para o álbum da anfitriã!</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Espaço do QR Code -->
+    <div class="qr-frame">
+      <div class="qr-placeholder-inner">
+        <div class="qr-icon">📷</div>
+        <div class="qr-title">Cole o QR Code Aqui</div>
+        <div class="qr-note">(Espaço útil: 4 x 4 cm)</div>
+      </div>
+    </div>
+
+    <!-- Keep Calm e Hashtag -->
+    <div class="callout-section">
+      <p class="keep-calm-text">Keep Calm e Poste Sem Moderação:</p>
+      <p class="hashtag-text">#NoClickCalm</p>
+    </div>
+
+    <!-- Rodapé Discreto -->
+    <div class="footer-line">
+      FotCabine • Lembranças Digitais do Evento
+    </div>
+
+  </div>
+
+</body>
+</html>
