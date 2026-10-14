@@ -60,7 +60,7 @@ export default function UploadClient({
     loadEvent();
   }, [currentSlug]);
 
-  // Carrega o SVG base e desenha o texto sobre ele no Canvas
+  // GERAÇÃO DO CARD NO MIOLO BRANCO DO BALÃO
   const generateCardBlob = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current;
@@ -81,17 +81,23 @@ export default function UploadClient({
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, 1080, 1080);
 
-        // Desenha a sua arte base do balão (SVG)
+        // Desenha a ilustração do balão
         ctx.drawImage(bgImg, 0, 0, 1080, 1080);
 
-        // Configuração de texto da mensagem
+        // Quebra e formatação da mensagem dentro do miolo útil
         ctx.fillStyle = '#18181b';
-        ctx.font = 'italic 36px "Georgia", serif';
+        ctx.font = 'italic 38px "Georgia", serif';
         ctx.textAlign = 'center';
 
-        const maxWidth = 760;
+        const maxWidth = 640;
         const lineHeight = 54;
-        const words = guestMessage.trim().split(' ');
+        
+        let formattedMessage = guestMessage.trim();
+        if (!formattedMessage.startsWith('“') && !formattedMessage.startsWith('"')) {
+          formattedMessage = `“${formattedMessage}”`;
+        }
+
+        const words = formattedMessage.split(' ');
         let line = '';
         const lines: string[] = [];
 
@@ -107,23 +113,28 @@ export default function UploadClient({
         }
         lines.push(line.trim());
 
-        // Centraliza verticalmente o texto no miolo do balão
-        let startY = 490 - ((lines.length - 1) * lineHeight) / 2;
+        // O centro útil do balão fica em Y = 420.
+        // Calculamos a altura do bloco de texto para centralizar verticalmente:
+        const totalTextHeight = lines.length * lineHeight;
+        let startY = 420 - totalTextHeight / 2;
+
         for (const l of lines) {
-          ctx.fillText(l, 540, startY);
+          ctx.fillText(l, 465, startY);
           startY += lineHeight;
         }
 
-        // Nome do Convidado na base
-        ctx.fillStyle = '#09090b';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillText(authorName.trim().toUpperCase(), 540, 960);
+        // Nome do Convidado posicionado LOGO ABAIXO da mensagem (dentro da área branca)
+        const authorY = Math.min(startY + 45, 690); // trava para nunca descer até a cauda
+
+        ctx.fillStyle = '#27272a';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillText(`— ${authorName.trim().toUpperCase()}`, 465, authorY);
 
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
       };
 
       bgImg.onerror = () => {
-        // Fallback: se o SVG falhar ao carregar, desenha o balão vetorial direto
+        // Fallback caso o svg demore a responder
         canvas.width = 1080;
         canvas.height = 1080;
         ctx.fillStyle = '#ffffff';
@@ -131,16 +142,16 @@ export default function UploadClient({
 
         ctx.strokeStyle = '#27272a';
         ctx.lineWidth = 14;
-        ctx.strokeRect(90, 90, 900, 800);
+        ctx.strokeRect(90, 90, 900, 700);
 
         ctx.fillStyle = '#18181b';
-        ctx.font = 'italic 36px "Georgia", serif';
+        ctx.font = 'italic 38px "Georgia", serif';
         ctx.textAlign = 'center';
-        ctx.fillText(guestMessage.trim(), 540, 480);
+        ctx.fillText(guestMessage.trim(), 540, 420);
 
-        ctx.fillStyle = '#09090b';
-        ctx.font = 'bold 30px sans-serif';
-        ctx.fillText(authorName.trim().toUpperCase(), 540, 960);
+        ctx.fillStyle = '#27272a';
+        ctx.font = 'bold 26px sans-serif';
+        ctx.fillText(`— ${authorName.trim().toUpperCase()}`, 540, 520);
 
         canvas.toBlob((blob) => resolve(blob), 'image/jpeg', 0.95);
       };
