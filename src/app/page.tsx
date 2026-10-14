@@ -43,7 +43,7 @@ export default function AdminPage() {
   const [editBgImage, setEditBgImage] = useState<File | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
 
-  // Gestão / Eliminação de fotos
+  // Gestão / Moderação de fotos
   const [managingPhotosEvent, setManagingPhotosEvent] = useState<any | null>(null);
   const [eventPhotos, setEventPhotos] = useState<any[]>([]);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
@@ -61,9 +61,10 @@ export default function AdminPage() {
   };
 
   const fetchEvents = async () => {
+    // Busca os eventos trazendo a contagem de fotos vinculadas
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select('*, photos(count)')
       .order('created_at', { ascending: false });
     if (!error && data) {
       setEvents(data);
@@ -207,6 +208,7 @@ export default function AdminPage() {
       const { error } = await supabase.from('photos').delete().eq('id', photoId);
       if (error) throw error;
       setEventPhotos((prev) => prev.filter((p) => p.id !== photoId));
+      fetchEvents(); // atualiza contador
     } catch (err: any) {
       alert('Erro ao excluir foto: ' + err.message);
     }
@@ -229,11 +231,9 @@ export default function AdminPage() {
     setTimeout(() => setCopiedUrl(null), 2000);
   };
 
-  // TELA DE LOGIN ADMIN (PADRÃO FOTCABINE)
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-zinc-950 flex flex-col">
-        {/* Barra Superior FotCabine */}
         <header className="bg-black border-b-4 border-[#FF6600] px-6 py-4 shadow-md flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Image
@@ -251,7 +251,6 @@ export default function AdminPage() {
           </div>
         </header>
 
-        {/* Card Central de Login */}
         <div className="flex-1 flex items-center justify-center p-6">
           <form
             onSubmit={handleLogin}
@@ -286,10 +285,8 @@ export default function AdminPage() {
     );
   }
 
-  // PAINEL DE CONTROLE LOGADO
   return (
     <div className="min-h-screen bg-zinc-950 text-white flex flex-col">
-      {/* Barra Superior FotCabine */}
       <header className="bg-black border-b-4 border-[#FF6600] px-6 py-4 shadow-md flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Image
@@ -314,10 +311,8 @@ export default function AdminPage() {
         </button>
       </header>
 
-      {/* Conteúdo Principal */}
       <main className="flex-1 max-w-6xl w-full mx-auto p-6 md:p-10 space-y-10">
-        
-        {/* Formulário de Criação de Evento */}
+        {/* Formulário Novo Evento */}
         <form onSubmit={handleCreateEvent} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 md:p-8 space-y-5 shadow-xl">
           <div className="flex items-center gap-2 border-b border-zinc-800 pb-3">
             <div className="h-8 w-8 rounded-lg bg-[#FF6600]/10 flex items-center justify-center">
@@ -387,7 +382,7 @@ export default function AdminPage() {
           </button>
         </form>
 
-        {/* Lista de Eventos Ativos */}
+        {/* Lista de Eventos com Contador de Fotos */}
         <div className="space-y-4">
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
             Eventos Ativos
@@ -400,6 +395,7 @@ export default function AdminPage() {
             {events.map((evt) => {
               const albumUrl = `https://albumonline.fotcabine.com.br/e/${evt.slug}`;
               const uploadUrl = `https://albumonline.fotcabine.com.br/e/${evt.slug}/upload`;
+              const photoCount = evt.photos?.[0]?.count ?? 0;
 
               return (
                 <div
@@ -409,7 +405,12 @@ export default function AdminPage() {
                   <div>
                     <div className="flex justify-between items-start">
                       <div>
-                        <h3 className="text-lg font-bold text-white">{evt.title}</h3>
+                        <div className="flex items-center gap-2">
+                          <h3 className="text-lg font-bold text-white">{evt.title}</h3>
+                          <span className="bg-[#FF6600]/15 text-[#FF6600] border border-[#FF6600]/30 text-[11px] font-semibold px-2 py-0.5 rounded-full flex items-center gap-1">
+                            <ImageIcon size={11} /> {photoCount} {photoCount === 1 ? 'foto' : 'fotos'}
+                          </span>
+                        </div>
                         <p className="text-xs text-zinc-400 flex items-center gap-1.5 mt-1 font-mono">
                           <Calendar size={13} className="text-[#FF6600]" /> {evt.event_date}
                         </p>
@@ -442,15 +443,13 @@ export default function AdminPage() {
                   </div>
 
                   <div className="space-y-2.5 border-t border-zinc-800 pt-3">
-                    {/* Botão de Moderação de Fotos */}
                     <button
                       onClick={() => openManagePhotos(evt)}
                       className="w-full text-xs font-semibold py-2.5 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition flex items-center justify-center gap-2 border border-zinc-700"
                     >
-                      <ImageIcon size={14} className="text-[#FF6600]" /> Moderação / Excluir Fotos Deste Álbum
+                      <ImageIcon size={14} className="text-[#FF6600]" /> Moderação / Excluir Fotos ({photoCount})
                     </button>
 
-                    {/* Link do Álbum */}
                     <div className="flex items-center justify-between text-xs bg-black/60 p-2.5 rounded-xl border border-zinc-800">
                       <span className="text-zinc-400">Álbum:</span>
                       <div className="flex items-center gap-3">
@@ -472,7 +471,6 @@ export default function AdminPage() {
                       </div>
                     </div>
 
-                    {/* Link do Upload */}
                     <div className="flex items-center justify-between text-xs bg-black/60 p-2.5 rounded-xl border border-zinc-800">
                       <span className="text-zinc-400">Upload Convidados:</span>
                       <div className="flex items-center gap-3">
@@ -497,10 +495,9 @@ export default function AdminPage() {
             })}
           </div>
         </div>
-
       </main>
 
-      {/* MODAL: EDITAR EVENTO */}
+      {/* Modal Editar */}
       {editingEvent && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <form onSubmit={handleSaveEdit} className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
@@ -568,14 +565,14 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* MODAL: MODERAÇÃO DE FOTOS */}
+      {/* Modal Moderação de Fotos */}
       {managingPhotosEvent && (
         <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-4xl w-full max-h-[85vh] flex flex-col shadow-2xl">
             <div className="flex justify-between items-center border-b border-zinc-800 pb-4">
               <div>
                 <h3 className="text-lg font-bold text-white">Fotos: {managingPhotosEvent.title}</h3>
-                <p className="text-xs text-zinc-400">Exclua fotos indevidas enviadas para este evento</p>
+                <p className="text-xs text-zinc-400">Total: {eventPhotos.length} fotos enviadas</p>
               </div>
               <button onClick={() => setManagingPhotosEvent(null)} className="text-zinc-400 hover:text-white">
                 <X size={20} />
@@ -629,7 +626,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* MODAL QR CODE */}
+      {/* Modal QR Code */}
       {qrModalUrl && (
         <div className="fixed inset-0 bg-black/85 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
           <div className="bg-zinc-900 border border-zinc-700 p-6 rounded-2xl max-w-sm w-full text-center space-y-4 shadow-2xl">

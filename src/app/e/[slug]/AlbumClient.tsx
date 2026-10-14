@@ -176,10 +176,6 @@ export default function AlbumClient({
                     alt="Foto do evento"
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"
-                    onError={(e) => {
-                      // Fallback visual caso a imagem falhe ao carregar
-                      (e.target as HTMLImageElement).src = '/logo-fundo-preto.png';
-                    }}
                   />
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
                     <ZoomIn size={18} className="text-white" />
@@ -209,16 +205,14 @@ export default function AlbumClient({
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-3 sm:p-6 backdrop-blur-md"
           onClick={() => setActivePhoto(null)}
         >
-          {/* Botão Fechar X */}
           <button
             onClick={() => setActivePhoto(null)}
-            className="absolute top-4 right-4 z-50 bg-zinc-800/80 hover:bg-[#FF6600] text-white p-2.5 rounded-full border border-white/20 transition shadow-lg"
+            className="absolute top-4 right-4 z-50 bg-zinc-800/80 hover:bg-[#FF6600] text-white p-2.5 rounded-full border border-white/20 transition shadow-lg cursor-pointer"
             title="Fechar Visualização"
           >
             <X size={22} />
           </button>
 
-          {/* Imagem Ampliada */}
           <div 
             className="relative max-w-full max-h-full flex items-center justify-center"
             onClick={(e) => e.stopPropagation()}
