@@ -1,21 +1,15 @@
-﻿import React, { Suspense } from 'react';
-import AlbumClient from './AlbumClient';
-import { Loader2 } from 'lucide-react';
+﻿import { Metadata } from 'next';
+import { supabase } from '@/lib/supabase';
 
-export default function AlbumPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-          <Loader2 className="animate-spin text-zinc-400" size={32} />
-        </div>
-      }
-    >
-      <AlbumClient params={params} />
-    </Suspense>
-  );
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const { data: event } = await supabase
+    .from('events')
+    .select('title')
+    .eq('slug', params.slug)
+    .single();
+
+  return {
+    title: event ? `${event.title} • Álbum FotCabine` : 'Álbum Digital • FotCabine',
+    description: 'Álbum exclusivo do evento',
+  };
 }
