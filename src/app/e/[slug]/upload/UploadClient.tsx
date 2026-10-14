@@ -3,8 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { UploadCloud, CheckCircle, Loader2, ArrowLeft, Image as ImageIcon } from 'lucide-react';
-import Link from 'next/link';
+import { UploadCloud, CheckCircle, Loader2, Image as ImageIcon } from 'lucide-react';
 
 export default function UploadClient({
   params,
@@ -21,6 +20,7 @@ export default function UploadClient({
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadComplete, setUploadComplete] = useState(false);
+  const [limitWarning, setLimitWarning] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadEvent() {
@@ -48,8 +48,15 @@ export default function UploadClient({
   }, [currentSlug]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLimitWarning(null);
     if (e.target.files) {
-      setSelectedFiles(Array.from(e.target.files));
+      const files = Array.from(e.target.files);
+      if (files.length > 3) {
+        setLimitWarning('Você pode enviar no máximo 3 fotos por vez.');
+        setSelectedFiles(files.slice(0, 3));
+      } else {
+        setSelectedFiles(files);
+      }
     }
   };
 
@@ -60,9 +67,10 @@ export default function UploadClient({
     setUploading(true);
     setUploadProgress(0);
 
+    const filesToUpload = selectedFiles.slice(0, 3);
     let completed = 0;
 
-    for (const file of selectedFiles) {
+    for (const file of filesToUpload) {
       try {
         const fileExt = file.name.split('.').pop() || 'jpg';
         const fileName = `${event.id}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
@@ -84,7 +92,7 @@ export default function UploadClient({
         });
 
         completed++;
-        setUploadProgress(Math.round((completed / selectedFiles.length) * 100));
+        setUploadProgress(Math.round((completed / filesToUpload.length) * 100));
       } catch (err) {
         console.error('Erro ao enviar foto:', err);
       }
@@ -113,7 +121,7 @@ export default function UploadClient({
           className="h-10 w-auto object-contain mb-4"
         />
         <h2 className="text-xl font-bold mb-2">Evento não encontrado</h2>
-        <p className="text-zinc-500 text-xs font-mono">Slug: "{currentSlug}"</p>
+        <p className="text-zinc-500 text-xs font-mono">Verifique o QR Code lido.</p>
       </div>
     );
   }
@@ -146,11 +154,11 @@ export default function UploadClient({
         </div>
       </header>
 
-      {/* Formulário Central */}
+      {/* Formulário Central (Sem atalho para ver álbum) */}
       <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
         <div className="text-center mb-6">
           <h1 className="text-2xl md:text-3xl font-bold font-serif text-white">{event.title}</h1>
-          <p className="text-xs text-zinc-400 mt-1">Compartilhe suas fotos tiradas neste evento</p>
+          <p className="text-xs text-zinc-400 mt-1">Envie até 3 fotos tiradas no evento</p>
         </div>
 
         {uploadComplete ? (
@@ -158,26 +166,19 @@ export default function UploadClient({
             <CheckCircle className="mx-auto text-emerald-400 mb-4" size={48} />
             <h2 className="text-2xl font-bold mb-2 text-white">Fotos enviadas com sucesso!</h2>
             <p className="text-sm text-zinc-400 mb-6">
-              Suas fotos já foram adicionadas ao álbum oficial.
+              Obrigado por compartilhar suas fotos! Elas foram salvas com segurança no álbum oficial.
             </p>
-            <div className="flex flex-col gap-3">
-              <Link
-                href={`/e/${currentSlug}`}
-                className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white font-semibold py-3 rounded-xl transition text-center shadow-md shadow-[#FF6600]/20"
-              >
-                Ver Álbum do Evento
-              </Link>
-              <button
-                onClick={() => {
-                  setUploadComplete(false);
-                  setSelectedFiles([]);
-                  setUploadProgress(0);
-                }}
-                className="w-full bg-zinc-800 hover:bg-zinc-700 text-white py-3 rounded-xl transition text-sm"
-              >
-                Enviar mais fotos
-              </button>
-            </div>
+            <button
+              onClick={() => {
+                setUploadComplete(false);
+                setSelectedFiles([]);
+                setUploadProgress(0);
+                setLimitWarning(null);
+              }}
+              className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl transition text-sm font-semibold shadow-lg shadow-[#FF6600]/25"
+            >
+              Enviar mais fotos
+            </button>
           </div>
         ) : (
           <form onSubmit={handleUpload} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5">
@@ -195,13 +196,16 @@ export default function UploadClient({
             </div>
 
             <div>
-              <label className="block text-xs uppercase font-medium text-zinc-400 mb-1.5">
-                Selecione as Fotos
-              </label>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-xs uppercase font-medium text-zinc-400">
+                  Selecione até 3 Fotos
+                </label>
+                <span className="text-[11px] text-[#FF6600] font-mono">Máx: 3 fotos</span>
+              </div>
               <label className="border-2 border-dashed border-zinc-700 hover:border-[#FF6600] rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition bg-black/40">
                 <UploadCloud className="text-[#FF6600] mb-2" size={38} />
-                <span className="text-sm font-medium text-zinc-200 text-center">Clique para escolher do celular / computador</span>
-                <span className="text-xs text-zinc-500 mt-1">Formatos comuns de imagem suportados</span>
+                <span className="text-sm font-medium text-zinc-200 text-center">Clique para escolher do celular</span>
+                <span className="text-xs text-zinc-500 mt-1">Limite máximo de 3 fotos</span>
                 <input
                   type="file"
                   multiple
@@ -212,12 +216,27 @@ export default function UploadClient({
               </label>
             </div>
 
+            {limitWarning && (
+              <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 p-2.5 rounded-lg text-center">
+                {limitWarning}
+              </p>
+            )}
+
             {selectedFiles.length > 0 && (
-              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-3 flex items-center gap-3">
-                <ImageIcon className="text-[#FF6600]" size={20} />
-                <span className="text-xs text-zinc-200">
-                  {selectedFiles.length} foto(s) selecionada(s)
-                </span>
+              <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl p-3 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ImageIcon className="text-[#FF6600]" size={18} />
+                  <span className="text-xs text-zinc-200">
+                    {selectedFiles.length} foto(s) selecionada(s)
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSelectedFiles([])}
+                  className="text-[11px] text-zinc-400 hover:text-white"
+                >
+                  Limpar
+                </button>
               </div>
             )}
 
@@ -247,18 +266,9 @@ export default function UploadClient({
                   Enviando...
                 </>
               ) : (
-                `Enviar Fotos (${selectedFiles.length})`
+                `Enviar ${selectedFiles.length > 0 ? `(${selectedFiles.length})` : ''} Fotos`
               )}
             </button>
-
-            <div className="text-center">
-              <Link
-                href={`/e/${currentSlug}`}
-                className="inline-flex items-center gap-1.5 text-xs text-zinc-400 hover:text-white transition"
-              >
-                <ArrowLeft size={14} /> Voltar ao álbum
-              </Link>
-            </div>
           </form>
         )}
       </main>

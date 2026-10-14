@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import { Download, Loader2 } from 'lucide-react';
+import { Download, Loader2, X, ZoomIn } from 'lucide-react';
 
 export default function AlbumClient({
   params,
@@ -19,6 +19,7 @@ export default function AlbumClient({
   const [photos, setPhotos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
+  const [activePhoto, setActivePhoto] = useState<string | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -36,12 +37,13 @@ export default function AlbumClient({
 
         if (eventData) {
           setEvent(eventData);
-          const { data: photosData } = await supabase
+          const { data: photosData, error: photosErr } = await supabase
             .from('photos')
             .select('*')
             .eq('event_id', eventData.id)
             .order('created_at', { ascending: false });
 
+          if (photosErr) console.error('Erro ao buscar fotos:', photosErr);
           setPhotos(photosData || []);
         }
       } catch (err) {
@@ -96,14 +98,14 @@ export default function AlbumClient({
           className="h-10 w-auto object-contain mb-4"
         />
         <h2 className="text-xl font-bold text-white mb-2">Álbum não encontrado</h2>
-        <p className="text-zinc-500 text-xs">Verifique o link enviado pelo anfitrião ou contate a organização.</p>
+        <p className="text-zinc-500 text-xs">Verifique o link enviado pelo anfitrião.</p>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative overflow-x-hidden flex flex-col justify-between">
-      {/* Background Personalizado do Evento com Marca D'água */}
+      {/* Background do Evento */}
       {event.bg_image_url && (
         <div
           className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-20 filter saturate-50 contrast-125 z-0"
@@ -112,7 +114,7 @@ export default function AlbumClient({
       )}
 
       {/* Camada Escura */}
-      <div className="fixed inset-0 bg-gradient-to-b from-black/85 via-black/60 to-black/90 pointer-events-none z-0" />
+      <div className="fixed inset-0 bg-gradient-to-b from-black/85 via-black/65 to-black/95 pointer-events-none z-0" />
 
       {/* Conteúdo */}
       <div className="relative z-10 flex flex-col min-h-screen justify-between">
@@ -135,45 +137,53 @@ export default function AlbumClient({
         </header>
 
         {/* Título e Ação do Álbum */}
-        <section className="text-center py-12 px-4 flex flex-col items-center">
-          <h1 className="text-3xl md:text-5xl font-serif font-bold tracking-wide drop-shadow text-white">
+        <section className="text-center py-8 px-4 flex flex-col items-center">
+          <h1 className="text-2xl md:text-4xl font-serif font-bold tracking-wide drop-shadow text-white">
             {event.title}
           </h1>
-          <p className="mt-2 text-sm md:text-base text-[#FF6600] font-medium tracking-wide">
+          <p className="mt-1 text-xs md:text-sm text-[#FF6600] font-medium tracking-wide">
             {new Date(event.event_date + 'T00:00:00').toLocaleDateString('pt-BR', { dateStyle: 'long' })}
           </p>
 
-          <div className="mt-6 flex justify-center">
+          <div className="mt-5 flex justify-center">
             <button
               onClick={downloadAllAsZip}
               disabled={downloading || photos.length === 0}
-              className="inline-flex items-center gap-2 bg-[#FF6600] hover:bg-[#E65C00] text-white px-8 py-3.5 rounded-full transition disabled:opacity-40 shadow-lg shadow-[#FF6600]/25 font-semibold text-sm md:text-base tracking-wide cursor-pointer"
+              className="inline-flex items-center gap-2 bg-[#FF6600] hover:bg-[#E65C00] text-white px-6 py-3 rounded-full transition disabled:opacity-40 shadow-lg shadow-[#FF6600]/25 font-semibold text-xs md:text-sm tracking-wide cursor-pointer"
             >
-              <Download size={18} />
+              <Download size={16} />
               {downloading ? 'Baixando fotos...' : `Baixar Todas as Fotos (${photos.length})`}
             </button>
           </div>
         </section>
 
-        {/* Galeria de Fotos */}
-        <section className="max-w-7xl mx-auto w-full px-4 py-6 flex-1">
+        {/* Galeria de Miniaturas Compactas */}
+        <section className="max-w-5xl mx-auto w-full px-4 py-4 flex-1">
           {photos.length === 0 ? (
-            <p className="text-center text-zinc-400 mt-16 font-light">
+            <p className="text-center text-zinc-400 mt-16 font-light text-sm">
               Nenhuma foto enviada até o momento.
             </p>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5 sm:gap-3.5">
               {photos.map((p) => (
                 <div
                   key={p.id}
-                  className="group relative aspect-square overflow-hidden rounded-xl bg-zinc-900 border border-zinc-800 shadow-md"
+                  onClick={() => setActivePhoto(p.image_url)}
+                  className="group relative aspect-square overflow-hidden rounded-lg bg-zinc-900 border border-zinc-800 shadow cursor-pointer hover:border-[#FF6600] transition"
                 >
                   <img
                     src={p.image_url}
                     alt="Foto do evento"
                     className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                     loading="lazy"
+                    onError={(e) => {
+                      // Fallback visual caso a imagem falhe ao carregar
+                      (e.target as HTMLImageElement).src = '/logo-fundo-preto.png';
+                    }}
                   />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                    <ZoomIn size={18} className="text-white" />
+                  </div>
                 </div>
               ))}
             </div>
@@ -181,17 +191,46 @@ export default function AlbumClient({
         </section>
 
         {/* Rodapé Oficial */}
-        <footer className="py-6 text-xs text-zinc-400 border-t border-zinc-800 bg-black/80 flex flex-col items-center justify-center gap-2">
+        <footer className="py-5 text-xs text-zinc-500 border-t border-zinc-900 bg-black/80 flex flex-col items-center justify-center gap-1.5">
           <Image
             src="/logo-fundo-preto.png"
             alt="FotCabine"
-            width={90}
-            height={28}
-            className="h-5 w-auto object-contain opacity-70"
+            width={80}
+            height={25}
+            className="h-4 w-auto object-contain opacity-60"
           />
-          <span>FotCabine • Transformando o seu Sonho em um Evento de Sucesso</span>
+          <span>FotCabine • Álbum Digital do Evento</span>
         </footer>
       </div>
+
+      {/* Modal Tela Cheia com "X" de Fechar */}
+      {activePhoto && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-3 sm:p-6 backdrop-blur-md"
+          onClick={() => setActivePhoto(null)}
+        >
+          {/* Botão Fechar X */}
+          <button
+            onClick={() => setActivePhoto(null)}
+            className="absolute top-4 right-4 z-50 bg-zinc-800/80 hover:bg-[#FF6600] text-white p-2.5 rounded-full border border-white/20 transition shadow-lg"
+            title="Fechar Visualização"
+          >
+            <X size={22} />
+          </button>
+
+          {/* Imagem Ampliada */}
+          <div 
+            className="relative max-w-full max-h-full flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={activePhoto}
+              alt="Visualização ampliada"
+              className="max-h-[85vh] max-w-[95vw] object-contain rounded-xl shadow-2xl border border-zinc-800"
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
