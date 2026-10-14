@@ -2,6 +2,8 @@
 import { supabase } from '@/lib/supabase';
 import AlbumClient from './AlbumClient';
 
+export const dynamic = 'force-dynamic';
+
 type Props = {
   params: Promise<{ slug: string }>;
 };
@@ -22,6 +24,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default function EventPage({ params }: Props) {
-  return <AlbumClient params={params} />;
+export default async function EventPage({ params }: Props) {
+  const resolvedParams = await params;
+  const slug = decodeURIComponent(resolvedParams?.slug || '').trim().toLowerCase();
+  return <AlbumClient slug={slug} />;
 }

@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import React, { useEffect, useState, use, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import JSZip from 'jszip';
@@ -17,13 +17,8 @@ import {
   Maximize2
 } from 'lucide-react';
 
-export default function AlbumClient({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const resolvedParams = use(params);
-  const currentSlug = decodeURIComponent(resolvedParams?.slug || '').trim().toLowerCase();
+export default function AlbumClient({ slug }: { slug: string }) {
+  const currentSlug = slug;
 
   const [event, setEvent] = useState<any>(null);
   const [photos, setPhotos] = useState<any[]>([]);
@@ -69,7 +64,7 @@ export default function AlbumClient({
     loadData();
   }, [currentSlug]);
 
-  // 2. Escuta em Tempo Real nativa via WebSocket (Consumo zero de requisições repetitivas)
+  // 2. Escuta em Tempo Real nativa via WebSocket
   useEffect(() => {
     if (!event?.id) return;
 
@@ -107,7 +102,7 @@ export default function AlbumClient({
     };
   }, [event?.id]);
 
-  // 3. Controle do Slideshow (Apresentação no Telão a cada 4.5 segundos)
+  // 3. Controle do Slideshow
   useEffect(() => {
     if (!isSlideshow || !isPlaying || photos.length === 0) {
       if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current);
@@ -123,7 +118,6 @@ export default function AlbumClient({
     };
   }, [isSlideshow, isPlaying, photos.length]);
 
-  // Atalhos de teclado no Slideshow (ESC para sair, setas para navegar, Espaço para pausar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isSlideshow) return;
@@ -205,7 +199,6 @@ export default function AlbumClient({
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative overflow-x-hidden flex flex-col justify-between">
-      {/* Background do Evento */}
       {event.bg_image_url && (
         <div
           className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-20 filter saturate-50 contrast-125 z-0"
@@ -213,13 +206,9 @@ export default function AlbumClient({
         />
       )}
 
-      {/* Camada Escura */}
       <div className="fixed inset-0 bg-gradient-to-b from-black/85 via-black/65 to-black/95 pointer-events-none z-0" />
 
-      {/* Conteúdo Principal */}
       <div className="relative z-10 flex flex-col min-h-screen justify-between">
-        
-        {/* Barra Superior FotCabine */}
         <header className="bg-black/90 border-b-4 border-[#FF6600] px-6 py-4 backdrop-blur-md">
           <div className="max-w-6xl mx-auto flex items-center justify-between">
             <Image
@@ -237,7 +226,6 @@ export default function AlbumClient({
           </div>
         </header>
 
-        {/* Cabeçalho do Álbum e Botões de Ação */}
         <section className="text-center py-8 px-4 flex flex-col items-center">
           <h1 className="text-2xl md:text-4xl font-serif font-bold tracking-wide drop-shadow text-white">
             {event.title}
@@ -267,7 +255,6 @@ export default function AlbumClient({
           </div>
         </section>
 
-        {/* Galeria de Miniaturas Compactas */}
         <section className="max-w-5xl mx-auto w-full px-4 py-4 flex-1">
           {photos.length === 0 ? (
             <p className="text-center text-zinc-400 mt-16 font-light text-sm">
@@ -296,7 +283,6 @@ export default function AlbumClient({
           )}
         </section>
 
-        {/* Rodapé Oficial */}
         <footer className="py-5 text-xs text-zinc-500 border-t border-zinc-900 bg-black/80 flex flex-col items-center justify-center gap-1.5">
           <Image
             src="/logo-fundo-preto.png"
@@ -309,7 +295,6 @@ export default function AlbumClient({
         </footer>
       </div>
 
-      {/* MODAL 1: FOTO EXPANDIDA INDIVIDUAL COM "X" */}
       {activePhoto && (
         <div 
           className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-3 sm:p-6 backdrop-blur-md"
@@ -336,10 +321,8 @@ export default function AlbumClient({
         </div>
       )}
 
-      {/* MODAL 2: MODO APRESENTAÇÃO / TELÃO (SLIDESHOW) */}
       {isSlideshow && photos.length > 0 && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col justify-between p-4 sm:p-8 select-none">
-          {/* Barra Superior do Telão */}
           <div className="flex items-center justify-between z-10">
             <div className="flex items-center gap-3 bg-black/60 backdrop-blur-md px-4 py-2 rounded-xl border border-zinc-800">
               <Image
@@ -375,7 +358,6 @@ export default function AlbumClient({
             </div>
           </div>
 
-          {/* Área Central da Imagem */}
           <div className="flex-1 flex items-center justify-center relative my-2 overflow-hidden">
             <button
               onClick={prevSlide}
@@ -401,7 +383,6 @@ export default function AlbumClient({
             </button>
           </div>
 
-          {/* Barra Inferior com Indicador do Convidado */}
           <div className="text-center z-10">
             {photos[currentIndex]?.guest_name && (
               <span className="inline-block bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-zinc-800 text-xs text-zinc-300">

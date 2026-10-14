@@ -1,17 +1,12 @@
 ﻿'use client';
 
-import React, { useState, useEffect, use, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
 import { UploadCloud, CheckCircle, Loader2, Image as ImageIcon, MessageSquareHeart, Send, ArrowRight } from 'lucide-react';
 
-export default function UploadClient({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const resolvedParams = use(params);
-  const currentSlug = decodeURIComponent(resolvedParams?.slug || '').trim().toLowerCase();
+export default function UploadClient({ slug }: { slug: string }) {
+  const currentSlug = slug;
 
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -47,7 +42,6 @@ export default function UploadClient({
         if (data) {
           setEvent(data);
           
-          // Trava restaurada: só abre tela de recado se o dispositivo ainda não mandou
           const hasLeftMessage = localStorage.getItem(`msg_sent_${data.id}`);
           const savedGuestName = localStorage.getItem(`guest_name_${data.id}`);
 
@@ -70,7 +64,6 @@ export default function UploadClient({
     loadEvent();
   }, [currentSlug]);
 
-  // GERAÇÃO DO CARD NO MIOLO DO BALÃO SVG
   const generateCardBlob = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current;
@@ -189,7 +182,6 @@ export default function UploadClient({
         guest_name: authorName.trim(),
       });
 
-      // Salva no localStorage para bloquear novos pedidos de recado neste celular
       localStorage.setItem(`msg_sent_${event.id}`, 'true');
       localStorage.setItem(`guest_name_${event.id}`, authorName.trim());
 
@@ -316,7 +308,6 @@ export default function UploadClient({
         </div>
       </header>
 
-      {/* 1. TELA DE RECADO (APENAS 1º ACESSO DO DISPOSITIVO) */}
       {showWelcomeMessage ? (
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
@@ -399,7 +390,6 @@ export default function UploadClient({
           </form>
         </main>
       ) : (
-        /* 2. TELA DIRETA DE UPLOAD (SEM CAMPO DE NOME) */
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold font-serif text-white">{event.title}</h1>

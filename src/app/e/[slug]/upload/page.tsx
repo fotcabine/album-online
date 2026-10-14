@@ -1,21 +1,13 @@
-﻿import React, { Suspense } from 'react';
-import UploadClient from './UploadClient';
-import { Loader2 } from 'lucide-react';
+﻿import UploadClient from './UploadClient';
 
-export default function GuestUploadPage({
-  params,
-}: {
+export const dynamic = 'force-dynamic';
+
+type Props = {
   params: Promise<{ slug: string }>;
-}) {
-  return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-          <Loader2 className="animate-spin text-zinc-400" size={32} />
-        </div>
-      }
-    >
-      <UploadClient params={params} />
-    </Suspense>
-  );
+};
+
+export default async function UploadPage({ params }: Props) {
+  const resolvedParams = await params;
+  const slug = decodeURIComponent(resolvedParams?.slug || '').trim().toLowerCase();
+  return <UploadClient slug={slug} />;
 }
