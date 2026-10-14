@@ -39,7 +39,7 @@ export default function AlbumClient({
 
   // 1. Carregamento inicial do evento e fotos
   useEffect(() => {
-    async function loadEvent() {
+    async function loadData() {
       if (!currentSlug) return;
       try {
         const { data: eventData, error: eventErr } = await supabase
@@ -52,7 +52,13 @@ export default function AlbumClient({
 
         if (eventData) {
           setEvent(eventData);
-          await fetchPhotos(eventData.id);
+          const { data: photosData } = await supabase
+            .from('photos')
+            .select('*')
+            .eq('event_id', eventData.id)
+            .order('created_at', { ascending: false });
+
+          setPhotos(photosData || []);
         }
       } catch (err) {
         console.error('Erro na requisição inicial:', err);
@@ -60,39 +66,48 @@ export default function AlbumClient({
         setLoading(false);
       }
     }
-    loadEvent();
+    loadData();
   }, [currentSlug]);
 
-  const fetchPhotos = async (eventId: string) => {
-    const { data: photosData, error } = await supabase
-      .from('photos')
-      .select('*')
-      .eq('event_id', eventId)
-      .order('created_at', { ascending: false });
-
-    if (!error && photosData) {
-      setPhotos((prev) => {
-        // Atualiza somente se houver quantidade diferente para evitar re-renderizações desnecessárias
-        if (photosData.length !== prev.length) {
-          return photosData;
-        }
-        return prev;
-      });
-    }
-  };
-
-  // 2. Atualização periódica em Tempo Real (Polling a cada 8 segundos)
+  // 2. Escuta em Tempo Real nativa via WebSocket (Consumo zero de requisições repetitivas)
   useEffect(() => {
     if (!event?.id) return;
 
-    const interval = setInterval(() => {
-      fetchPhotos(event.id);
-    }, 8000); // 8 segundos
+    const channel = supabase
+      .channel(`realtime-photos-${event.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'photos',
+          filter: `event_id=eq.${event.id}`,
+        },
+        (payload) => {
+          const newPhoto = payload.new as any;
+          setPhotos((prev) => [newPhoto, ...prev]);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'photos',
+        },
+        (payload) => {
+          const deletedPhoto = payload.old as any;
+          setPhotos((prev) => prev.filter((p) => p.id !== deletedPhoto.id));
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [event?.id]);
 
-  // 3. Controle do Slideshow (Apresentação no Telão a cada 4 segundos)
+  // 3. Controle do Slideshow (Apresentação no Telão a cada 4.5 segundos)
   useEffect(() => {
     if (!isSlideshow || !isPlaying || photos.length === 0) {
       if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current);
@@ -101,14 +116,14 @@ export default function AlbumClient({
 
     slideshowTimerRef.current = setInterval(() => {
       setCurrentIndex((prev) => (prev + 1) % photos.length);
-    }, 4500); // Tempo de troca entre as fotos (4.5 segundos)
+    }, 4500);
 
     return () => {
       if (slideshowTimerRef.current) clearInterval(slideshowTimerRef.current);
     };
   }, [isSlideshow, isPlaying, photos.length]);
 
-  // Atalhos de teclado no Slideshow (ESC para sair, setas para navegar)
+  // Atalhos de teclado no Slideshow (ESC para sair, setas para navegar, Espaço para pausar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isSlideshow) return;
@@ -232,7 +247,6 @@ export default function AlbumClient({
           </p>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
-            {/* Botão de Slideshow / Telão */}
             <button
               onClick={startSlideshow}
               disabled={photos.length === 0}
@@ -242,7 +256,6 @@ export default function AlbumClient({
               Apresentação no Telão
             </button>
 
-            {/* Botão de Download */}
             <button
               onClick={downloadAllAsZip}
               disabled={downloading || photos.length === 0}
@@ -258,7 +271,7 @@ export default function AlbumClient({
         <section className="max-w-5xl mx-auto w-full px-4 py-4 flex-1">
           {photos.length === 0 ? (
             <p className="text-center text-zinc-400 mt-16 font-light text-sm">
-              Nenhuma foto enviada até o momento. As novas fotos aparecerão aqui automaticamente.
+              Nenhuma foto enviada até o momento. As novas fotos aparecerão aqui instantaneamente.
             </p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2.5 sm:gap-3.5">
@@ -362,7 +375,7 @@ export default function AlbumClient({
             </div>
           </div>
 
-          {/* Área Central da Imagem com Animação Fluida */}
+          {/* Área Central da Imagem */}
           <div className="flex-1 flex items-center justify-center relative my-2 overflow-hidden">
             <button
               onClick={prevSlide}
@@ -376,7 +389,7 @@ export default function AlbumClient({
                 key={photos[currentIndex]?.id}
                 src={photos[currentIndex]?.image_url}
                 alt="Foto do Telão"
-                className="max-h-[82vh] max-w-[92vw] object-contain rounded-2xl shadow-2xl transition-opacity duration-700 animate-fadeIn"
+                className="max-h-[82vh] max-w-[92vw] object-contain rounded-2xl shadow-2xl transition-opacity duration-700"
               />
             </div>
 
@@ -388,7 +401,7 @@ export default function AlbumClient({
             </button>
           </div>
 
-          {/* Barra Inferior com Indicador de Convidado */}
+          {/* Barra Inferior com Indicador do Convidado */}
           <div className="text-center z-10">
             {photos[currentIndex]?.guest_name && (
               <span className="inline-block bg-black/60 backdrop-blur-md px-4 py-1.5 rounded-full border border-zinc-800 text-xs text-zinc-300">
