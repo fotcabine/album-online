@@ -16,14 +16,14 @@ export default function UploadClient({
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
-  // MODO TESTE: Sempre abre a tela de recados (sem travar por dispositivo)
-  const [showWelcomeMessage, setShowWelcomeMessage] = useState(true);
+  // Controle de Primeiro Acesso com Trava Restaurada
+  const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
   const [authorName, setAuthorName] = useState('');
   const [guestMessage, setGuestMessage] = useState('');
   const [generatingMessageCard, setGeneratingMessageCard] = useState(false);
   const [messageSentSuccess, setMessageSentSuccess] = useState(false);
 
-  // Estados do Envio de Fotos
+  // Estados do Envio de Fotos (sem campo de nome na tela)
   const [guestName, setGuestName] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -46,8 +46,20 @@ export default function UploadClient({
         if (error) console.error('Erro ao buscar evento:', error);
         if (data) {
           setEvent(data);
-          // Modo teste ativo: sempre mostra a tela de mensagem inicialmente
-          setShowWelcomeMessage(true);
+          
+          // Trava restaurada: só abre tela de recado se o dispositivo ainda não mandou
+          const hasLeftMessage = localStorage.getItem(`msg_sent_${data.id}`);
+          const savedGuestName = localStorage.getItem(`guest_name_${data.id}`);
+
+          if (savedGuestName) {
+            setGuestName(savedGuestName);
+          }
+
+          if (!hasLeftMessage) {
+            setShowWelcomeMessage(true);
+          } else {
+            setShowWelcomeMessage(false);
+          }
         }
       } catch (err) {
         console.error(err);
@@ -58,7 +70,7 @@ export default function UploadClient({
     loadEvent();
   }, [currentSlug]);
 
-  // GERAÇÃO DO CARD NO MIOLO BRANCO DO BALÃO
+  // GERAÇÃO DO CARD NO MIOLO DO BALÃO SVG
   const generateCardBlob = (): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const canvas = canvasRef.current;
@@ -75,14 +87,11 @@ export default function UploadClient({
         canvas.width = 1080;
         canvas.height = 1080;
 
-        // Fundo Branco
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, 1080, 1080);
 
-        // Desenha a ilustração do balão
         ctx.drawImage(bgImg, 0, 0, 1080, 1080);
 
-        // Quebra e formatação da mensagem dentro do miolo útil
         ctx.fillStyle = '#18181b';
         ctx.font = 'italic 38px "Georgia", serif';
         ctx.textAlign = 'center';
@@ -119,7 +128,6 @@ export default function UploadClient({
           startY += lineHeight;
         }
 
-        // Nome do Convidado posicionado dentro da área branca
         const authorY = Math.min(startY + 45, 690);
 
         ctx.fillStyle = '#27272a';
@@ -181,7 +189,10 @@ export default function UploadClient({
         guest_name: authorName.trim(),
       });
 
-      // Durante os testes não travamos o dispositivo
+      // Salva no localStorage para bloquear novos pedidos de recado neste celular
+      localStorage.setItem(`msg_sent_${event.id}`, 'true');
+      localStorage.setItem(`guest_name_${event.id}`, authorName.trim());
+
       setGuestName(authorName.trim());
       setMessageSentSuccess(true);
 
@@ -305,6 +316,7 @@ export default function UploadClient({
         </div>
       </header>
 
+      {/* 1. TELA DE RECADO (APENAS 1º ACESSO DO DISPOSITIVO) */}
       {showWelcomeMessage ? (
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
@@ -380,17 +392,18 @@ export default function UploadClient({
                   onClick={() => setShowWelcomeMessage(false)}
                   className="w-full text-zinc-400 hover:text-white py-2 text-xs transition flex items-center justify-center gap-1 cursor-pointer"
                 >
-                  Pular recado e enviar apenas fotos <ArrowRight size={13} />
+                  Pular recado e enviar fotos <ArrowRight size={13} />
                 </button>
               </div>
             )}
           </form>
         </main>
       ) : (
+        /* 2. TELA DIRETA DE UPLOAD (SEM CAMPO DE NOME) */
         <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
           <div className="text-center mb-6">
             <h1 className="text-2xl md:text-3xl font-bold font-serif text-white">{event.title}</h1>
-            <p className="text-xs text-zinc-400 mt-1">Envie até 3 fotos tiradas na festa</p>
+            <p className="text-xs text-zinc-400 mt-1">Envie até 3 fotos tiradas na festa para o álbum</p>
           </div>
 
           {uploadComplete ? (
@@ -417,29 +430,17 @@ export default function UploadClient({
           ) : (
             <form onSubmit={handleUpload} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 shadow-2xl space-y-5">
               <div>
-                <label className="block text-xs uppercase font-medium text-zinc-400 mb-1.5">
-                  Seu Nome (Opcional)
-                </label>
-                <input
-                  type="text"
-                  value={guestName}
-                  onChange={(e) => setGuestName(e.target.value)}
-                  placeholder="Ex: Seu Nome"
-                  className="w-full bg-black border border-zinc-700 focus:border-[#FF6600] rounded-xl px-4 py-3 text-white placeholder-zinc-500 outline-none transition text-sm"
-                />
-              </div>
-
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-xs uppercase font-medium text-zinc-400">
-                    Selecione até 3 Fotos
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-xs uppercase font-medium text-zinc-300">
+                    Selecione suas fotos
                   </label>
-                  <span className="text-[11px] text-[#FF6600] font-mono">Máx: 3 arquivos</span>
+                  <span className="text-[11px] text-[#FF6600] font-mono">Máx: 3 por envio</span>
                 </div>
+                
                 <label className="border-2 border-dashed border-zinc-700 hover:border-[#FF6600] rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition bg-black/40">
-                  <UploadCloud className="text-[#FF6600] mb-2" size={38} />
-                  <span className="text-sm font-medium text-zinc-200 text-center">Toque para selecionar da galeria</span>
-                  <span className="text-xs text-zinc-500 mt-1">Imagens nos formatos JPEG ou PNG</span>
+                  <UploadCloud className="text-[#FF6600] mb-2" size={42} />
+                  <span className="text-sm font-semibold text-zinc-200 text-center">Toque para selecionar da galeria</span>
+                  <span className="text-xs text-zinc-500 mt-1">Até 3 fotos em JPEG ou PNG</span>
                   <input
                     type="file"
                     multiple
@@ -461,13 +462,13 @@ export default function UploadClient({
                   <div className="flex items-center gap-2">
                     <ImageIcon className="text-[#FF6600]" size={18} />
                     <span className="text-xs text-zinc-200">
-                      {selectedFiles.length} foto(s) pronta(s) para envio
+                      {selectedFiles.length} foto(s) selecionada(s)
                     </span>
                   </div>
                   <button
                     type="button"
                     onClick={() => setSelectedFiles([])}
-                    className="text-[11px] text-zinc-400 hover:text-white"
+                    className="text-[11px] text-zinc-400 hover:text-white cursor-pointer"
                   >
                     Limpar
                   </button>
@@ -497,7 +498,7 @@ export default function UploadClient({
                 {uploading ? (
                   <>
                     <Loader2 className="animate-spin" size={18} />
-                    Enviando...
+                    Enviando fotos...
                   </>
                 ) : (
                   `Enviar ${selectedFiles.length > 0 ? `(${selectedFiles.length})` : ''} Fotos`
