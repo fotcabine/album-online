@@ -3,7 +3,7 @@
 import React, { useState, useEffect, use } from 'react';
 import Image from 'next/image';
 import { supabase } from '@/lib/supabase';
-import { UploadCloud, CheckCircle, Loader2, Image as ImageIcon } from 'lucide-react';
+import { UploadCloud, CheckCircle, Loader2, Image as ImageIcon, ShieldAlert } from 'lucide-react';
 
 export default function UploadClient({
   params,
@@ -28,7 +28,7 @@ export default function UploadClient({
       try {
         const { data, error } = await supabase
           .from('events')
-          .select('*')
+          .select('id, title, event_date, bg_image_url')
           .eq('slug', currentSlug)
           .maybeSingle();
 
@@ -52,7 +52,7 @@ export default function UploadClient({
     if (e.target.files) {
       const files = Array.from(e.target.files);
       if (files.length > 3) {
-        setLimitWarning('Você pode enviar no máximo 3 fotos por vez.');
+        setLimitWarning('Limite máximo de 3 fotos por envio.');
         setSelectedFiles(files.slice(0, 3));
       } else {
         setSelectedFiles(files);
@@ -110,25 +110,43 @@ export default function UploadClient({
     );
   }
 
+  // Se o link foi editado ou o código do evento for inválido
   if (!event) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 text-center">
-        <Image
-          src="/logo-fundo-preto.png"
-          alt="FotCabine"
-          width={160}
-          height={50}
-          className="h-10 w-auto object-contain mb-4"
-        />
-        <h2 className="text-xl font-bold mb-2">Evento não encontrado</h2>
-        <p className="text-zinc-500 text-xs font-mono">Verifique o QR Code lido.</p>
+      <div className="min-h-screen bg-zinc-950 text-white flex flex-col justify-between selection:bg-zinc-800">
+        <header className="bg-black/90 border-b-4 border-[#FF6600] px-6 py-4 shadow-md">
+          <div className="max-w-xl mx-auto flex items-center justify-between">
+            <Image
+              src="/logo-fundo-preto.png"
+              alt="FotCabine"
+              width={130}
+              height={40}
+              className="h-8 w-auto object-contain"
+              priority
+            />
+          </div>
+        </header>
+
+        <main className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+          <div className="max-w-sm w-full bg-zinc-900/60 border border-zinc-800 p-8 rounded-2xl shadow-xl space-y-3">
+            <ShieldAlert size={36} className="text-[#FF6600] mx-auto" />
+            <h2 className="text-lg font-semibold text-white">Sessão Inválida</h2>
+            <p className="text-xs text-zinc-400 font-light leading-relaxed">
+              O link informado não é válido ou foi modificado no navegador. Por favor, leia o QR Code novamente.
+            </p>
+          </div>
+        </main>
+
+        <footer className="py-5 text-xs text-zinc-600 border-t border-zinc-900 bg-black/60 text-center">
+          FotCabine © 2026
+        </footer>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white relative flex flex-col justify-between">
-      {/* Background Marca D'água */}
+      {/* Background do Evento */}
       {event.bg_image_url && (
         <div
           className="fixed inset-0 bg-cover bg-center bg-no-repeat pointer-events-none opacity-20 filter saturate-50 contrast-125 z-0"
@@ -148,26 +166,28 @@ export default function UploadClient({
             className="h-8 w-auto object-contain"
             priority
           />
-          <span className="text-xs text-[#FF6600] font-medium uppercase tracking-wider">
-            Envio de Fotos
+          <span className="text-[11px] text-[#FF6600] font-mono uppercase tracking-wider">
+            Envio Seguro
           </span>
         </div>
       </header>
 
-      {/* Formulário Central (Sem atalho para ver álbum) */}
+      {/* Formulário Central de Upload */}
       <main className="relative z-10 max-w-lg mx-auto w-full p-6 flex-1 flex flex-col justify-center">
         <div className="text-center mb-6">
           <h1 className="text-2xl md:text-3xl font-bold font-serif text-white">{event.title}</h1>
-          <p className="text-xs text-zinc-400 mt-1">Envie até 3 fotos tiradas no evento</p>
+          <p className="text-xs text-zinc-400 mt-1">Envie até 3 fotos do evento diretamente para o álbum</p>
         </div>
 
         {uploadComplete ? (
-          <div className="bg-zinc-900 border border-emerald-500/30 rounded-2xl p-8 text-center shadow-2xl">
-            <CheckCircle className="mx-auto text-emerald-400 mb-4" size={48} />
-            <h2 className="text-2xl font-bold mb-2 text-white">Fotos enviadas com sucesso!</h2>
-            <p className="text-sm text-zinc-400 mb-6">
-              Obrigado por compartilhar suas fotos! Elas foram salvas com segurança no álbum oficial.
-            </p>
+          <div className="bg-zinc-900 border border-emerald-500/30 rounded-2xl p-8 text-center shadow-2xl space-y-4">
+            <CheckCircle className="mx-auto text-emerald-400" size={48} />
+            <div>
+              <h2 className="text-xl font-bold text-white">Fotos Recebidas!</h2>
+              <p className="text-xs text-zinc-400 mt-1.5 leading-relaxed">
+                Suas fotos foram enviadas com sucesso e adicionadas ao acervo oficial do evento.
+              </p>
+            </div>
             <button
               onClick={() => {
                 setUploadComplete(false);
@@ -175,9 +195,9 @@ export default function UploadClient({
                 setUploadProgress(0);
                 setLimitWarning(null);
               }}
-              className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl transition text-sm font-semibold shadow-lg shadow-[#FF6600]/25"
+              className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white py-3 rounded-xl transition text-xs font-semibold shadow-lg shadow-[#FF6600]/25 cursor-pointer"
             >
-              Enviar mais fotos
+              Enviar Outras Fotos
             </button>
           </div>
         ) : (
@@ -190,7 +210,7 @@ export default function UploadClient({
                 type="text"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                placeholder="Ex: Felipe Teixeira"
+                placeholder="Ex: Seu Nome"
                 className="w-full bg-black border border-zinc-700 focus:border-[#FF6600] rounded-xl px-4 py-3 text-white placeholder-zinc-500 outline-none transition text-sm"
               />
             </div>
@@ -200,12 +220,12 @@ export default function UploadClient({
                 <label className="block text-xs uppercase font-medium text-zinc-400">
                   Selecione até 3 Fotos
                 </label>
-                <span className="text-[11px] text-[#FF6600] font-mono">Máx: 3 fotos</span>
+                <span className="text-[11px] text-[#FF6600] font-mono">Máx: 3 arquivos</span>
               </div>
               <label className="border-2 border-dashed border-zinc-700 hover:border-[#FF6600] rounded-xl p-8 flex flex-col items-center justify-center cursor-pointer transition bg-black/40">
                 <UploadCloud className="text-[#FF6600] mb-2" size={38} />
-                <span className="text-sm font-medium text-zinc-200 text-center">Clique para escolher do celular</span>
-                <span className="text-xs text-zinc-500 mt-1">Limite máximo de 3 fotos</span>
+                <span className="text-sm font-medium text-zinc-200 text-center">Toque para selecionar da galeria</span>
+                <span className="text-xs text-zinc-500 mt-1">Imagens nos formatos JPEG ou PNG</span>
                 <input
                   type="file"
                   multiple
@@ -227,7 +247,7 @@ export default function UploadClient({
                 <div className="flex items-center gap-2">
                   <ImageIcon className="text-[#FF6600]" size={18} />
                   <span className="text-xs text-zinc-200">
-                    {selectedFiles.length} foto(s) selecionada(s)
+                    {selectedFiles.length} foto(s) pronta(s) para envio
                   </span>
                 </div>
                 <button
@@ -258,7 +278,7 @@ export default function UploadClient({
             <button
               type="submit"
               disabled={uploading || selectedFiles.length === 0}
-              className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#FF6600]/25"
+              className="w-full bg-[#FF6600] hover:bg-[#E65C00] text-white font-semibold py-3.5 rounded-xl transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2 shadow-lg shadow-[#FF6600]/25 text-sm"
             >
               {uploading ? (
                 <>
@@ -273,8 +293,8 @@ export default function UploadClient({
         )}
       </main>
 
-      <footer className="relative z-10 text-center py-5 text-xs text-zinc-500 border-t border-zinc-900 bg-black/60">
-        FotCabine • Álbum Digital do Evento
+      <footer className="relative z-10 text-center py-5 text-xs text-zinc-600 border-t border-zinc-900 bg-black/60">
+        FotCabine • Plataforma de Eventos
       </footer>
     </div>
   );
