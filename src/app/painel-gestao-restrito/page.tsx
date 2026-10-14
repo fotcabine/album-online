@@ -58,7 +58,7 @@ export default function SecretAdminPage() {
   const [loadingPhotos, setLoadingPhotos] = useState(false);
 
   // Senha do painel administrativo
-  const ADMIN_PIN = '1234';
+  const ADMIN_PIN = 'Mtt1201@1';
 
   const generateRandomCode = () => {
     const chars = '23456789abcdefghjkmnpqrstuvwxyz';
